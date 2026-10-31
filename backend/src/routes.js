@@ -1,0 +1,495 @@
+import crypto from 'node:crypto';
+import { Router } from 'express';
+import { pool } from './db.js';
+import { clock } from './clock.js';
+import { roomOf } from './socket.js';
+import { HttpError, cleanText } from './http.js';
+import {
+  orgBranding, ORG_BRANDING_COLUMNS, canCreateIn, joinOrganization, inviteAllMembers, isOrgAdmin, isActiveMember,
+} from './organizations.js';
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATETIME_RE = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(:\d{2})?$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const isValidDate = (s) => {
+  if (typeof s !== 'string' || !DATE_RE.test(s)) return false;
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+};
+
+/** Accepts "YYYY-MM-DDTHH:MM" (datetime-local), returns "YYYY-MM-DD HH:MM:00" or null. */
+function parseDeadline(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const m = DATETIME_RE.exec(String(value));
+  if (!m || !isValidDate(m[1])) throw new HttpError(400, "Date de fin d'édition invalide.");
+  return `${m[1]} ${m[2]}:00`;
+}
+
+/** Hours of the day (minutes, multiples of 15, at least one hour). Returns { dayStart, dayEnd }. */
+function parseDayHours(body, current = { dayStart: 0, dayEnd: 1440 }) {
+  const dayStart = body?.dayStart !== undefined ? Number(body.dayStart) : current.dayStart;
+  const dayEnd = body?.dayEnd !== undefined ? Number(body.dayEnd) : current.dayEnd;
+  const ok = (m) => Number.isInteger(m) && m >= 0 && m <= 1440 && m % 15 === 0;
+  if (!ok(dayStart) || !ok(dayEnd) || dayEnd - dayStart < 60) {
+    throw new HttpError(400, "Heures de la journée invalides (au moins une heure d'écart).");
+  }
+  return { dayStart, dayEnd };
+}
+
+/** undefined = not provided, null = no organization, otherwise an id the user may create occasions in. */
+async function parseOrganization(value, userId) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const id = Number(value);
+  if (!Number.isInteger(id) || !(await canCreateIn(id, userId))) {
+    throw new HttpError(403, "Vous n'êtes pas autorisé à créer des occasions pour cette organisation.");
+  }
+  return id;
+}
+
+function withStatus(o) {
+  const { today, now } = clock();
+  // Archived automatically once the end date has passed, or manually by the creator.
+  const ended = o.end_date < today;
+  const archived = ended || !!o.archived_at;
+  const editClosed = !!o.edit_deadline && o.edit_deadline <= now;
+  return { ...o, ended, archived, editClosed, editable: !archived && !editClosed };
+}
+
+function serializeOccasion(o, userId) {
+  return {
+    id: o.id,
+    slug: o.slug,
+    title: o.title,
+    description: o.description || '',
+    startDate: o.start_date,
+    endDate: o.end_date,
+    dayStart: o.day_start_min ?? 0,
+    dayEnd: o.day_end_min ?? 1440,
+    editDeadline: o.edit_deadline ? o.edit_deadline.slice(0, 16).replace(' ', 'T') : null,
+    creatorId: o.creator_id,
+    isCreator: o.creator_id === userId,
+    archived: o.archived,
+    // Manual archive (can be undone as long as the end date has not passed).
+    archivedManually: !!o.archived_at && !o.ended,
+    editClosed: o.editClosed,
+    editable: o.editable,
+    guestCount: o.guest_count !== undefined ? Number(o.guest_count) : undefined,
+    organization: orgBranding(o),
+    allMembers: !!o.organization_id && !!o.all_members,
+  };
+}
+
+const serializeSlot = (r) => ({
+  id: r.id,
+  userId: r.user_id,
+  day: r.day,
+  start: r.start_min,
+  end: r.end_min,
+});
+
+const serializeUser = (u) => ({ id: u.id, name: u.name, email: u.email });
+
+async function loadOccasion(slug) {
+  const [rows] = await pool.query(
+    `SELECT o.*, ${ORG_BRANDING_COLUMNS} FROM occasions o
+     LEFT JOIN organizations g ON g.id = o.organization_id
+     WHERE o.slug = ?`,
+    [String(slug)],
+  );
+  if (!rows.length) throw new HttpError(404, 'Occasion introuvable.');
+  return withStatus(rows[0]);
+}
+
+async function isParticipant(occasionId, userId) {
+  const [rows] = await pool.query(
+    'SELECT 1 FROM participants WHERE occasion_id = ? AND user_id = ? AND removed_at IS NULL',
+    [occasionId, userId],
+  );
+  return rows.length > 0;
+}
+
+/** The occasion's creator, or an administrator of its organization, manages its guests. */
+async function canManageGuests(o, userId) {
+  if (o.creator_id === userId) return true;
+  return !!o.organization_id && (await isOrgAdmin(o.organization_id, userId));
+}
+
+async function activeGuests(occasionId) {
+  const [rows] = await pool.query(
+    `SELECT u.id, u.name, u.email FROM participants p JOIN users u ON u.id = p.user_id
+     WHERE p.occasion_id = ? AND p.removed_at IS NULL AND u.name IS NOT NULL ORDER BY p.joined_at, u.id`,
+    [occasionId],
+  );
+  return rows.map(serializeUser);
+}
+
+function assertEditable(o) {
+  if (o.archived) throw new HttpError(403, 'Cette occasion est archivée et ne peut plus être modifiée.');
+  if (o.editClosed) throw new HttpError(403, "La période d'édition de cette occasion est terminée.");
+}
+
+async function daySlots(conn, occasionId, userId, day) {
+  const [rows] = await conn.query(
+    `SELECT id, user_id, day, start_min, end_min FROM availabilities
+     WHERE occasion_id = ? AND user_id = ? AND day = ? ORDER BY start_min`,
+    [occasionId, userId, day],
+  );
+  return rows.map(serializeSlot);
+}
+
+/**
+ * Saves the range [start, end] for a user's day. Overlaps are refused; adjacent ranges are joined.
+ * `replaceId` (optional) is a slot being edited: it is removed first.
+ */
+async function saveMerged(occasionId, userId, day, start, end, replaceId = null) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    if (replaceId) {
+      await conn.query('DELETE FROM availabilities WHERE id = ? AND user_id = ?', [replaceId, userId]);
+    }
+    const [own] = await conn.query(
+      `SELECT id, start_min, end_min FROM availabilities
+       WHERE occasion_id = ? AND user_id = ? AND day = ? FOR UPDATE`,
+      [occasionId, userId, day],
+    );
+    // Ranges of the same user may not overlap; ranges that touch end-to-end are joined.
+    if (own.some((row) => row.start_min < end && row.end_min > start)) {
+      throw new HttpError(409, 'Vos plages ne peuvent pas se chevaucher.');
+    }
+    let s = start;
+    let e = end;
+    const merged = new Set();
+    for (const row of own) {
+      if (row.end_min === start || row.start_min === end) {
+        s = Math.min(s, row.start_min);
+        e = Math.max(e, row.end_min);
+        merged.add(row.id);
+      }
+    }
+    if (merged.size) await conn.query('DELETE FROM availabilities WHERE id IN (?)', [[...merged]]);
+    await conn.query(
+      'INSERT INTO availabilities (occasion_id, user_id, day, start_min, end_min) VALUES (?, ?, ?, ?, ?)',
+      [occasionId, userId, day, s, e],
+    );
+    const slots = await daySlots(conn, occasionId, userId, day);
+    await conn.commit();
+    return slots;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+function parseRange(body, o) {
+  const start = Number(body?.start);
+  const end = Number(body?.end);
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end > 1440 || start >= end) {
+    throw new HttpError(400, "L'heure de fin doit suivre l'heure de début.");
+  }
+  if (start < o.day_start_min || end > o.day_end_min) {
+    const t = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+    throw new HttpError(400, `Les plages doivent être entre ${t(o.day_start_min)} et ${t(o.day_end_min)}.`);
+  }
+  return { start, end };
+}
+
+export function createRoutes(io) {
+  const r = Router();
+
+  r.get('/me', (req, res) => {
+    // publicUrl: address phones can reach (QR codes), e.g. https://disponibilites.example.com
+    const host = process.env.PUBLIC_HOSTNAME;
+    res.json({ ...serializeUser(req.user), timezone: clock().timezone, publicUrl: host ? `https://${host}` : null });
+  });
+
+  r.put('/me', async (req, res) => {
+    const name = cleanText(req.body?.name, 100);
+    const email = cleanText(req.body?.email, 255).toLowerCase();
+    if (!name) throw new HttpError(400, 'Le nom est requis.');
+    if (!EMAIL_RE.test(email)) throw new HttpError(400, 'Courriel invalide.');
+
+    await pool.query('UPDATE users SET name = ?, email = ? WHERE id = ?', [name, email, req.user.id]);
+    const user = { id: req.user.id, name, email };
+
+    // Show the (new or renamed) guest in every occasion they belong to.
+    const [occ] = await pool.query(
+      `SELECT o.slug FROM participants p JOIN occasions o ON o.id = p.occasion_id
+       WHERE p.user_id = ? AND p.removed_at IS NULL`,
+      [user.id],
+    );
+    for (const { slug } of occ) io.to(roomOf(slug)).emit('participant:upsert', user);
+
+    res.json(user);
+  });
+
+  /** Occasions the current user created or joined. */
+  r.get('/occasions', async (req, res) => {
+    const [rows] = await pool.query(
+      `SELECT o.*, ${ORG_BRANDING_COLUMNS},
+         (SELECT COUNT(*) FROM participants p2 JOIN users u ON u.id = p2.user_id
+           WHERE p2.occasion_id = o.id AND p2.removed_at IS NULL AND u.name IS NOT NULL) AS guest_count
+       FROM occasions o
+       JOIN participants p ON p.occasion_id = o.id AND p.user_id = ? AND p.removed_at IS NULL
+       LEFT JOIN organizations g ON g.id = o.organization_id
+       ORDER BY o.start_date, o.id`,
+      [req.user.id],
+    );
+    res.json(rows.map((o) => serializeOccasion(withStatus(o), req.user.id)));
+  });
+
+  r.post('/occasions', async (req, res) => {
+    if (!req.user.name) throw new HttpError(400, 'Indiquez votre nom et courriel avant de créer une occasion.');
+    const title = cleanText(req.body?.title, 200);
+    const description = cleanText(req.body?.description, 5000);
+    const { startDate, endDate } = req.body || {};
+    const editDeadline = parseDeadline(req.body?.editDeadline);
+    const organizationId = (await parseOrganization(req.body?.organizationId, req.user.id)) ?? null;
+    const allMembers = !!organizationId && !!req.body?.allMembers;
+    const { dayStart, dayEnd } = parseDayHours(req.body, { dayStart: 8 * 60, dayEnd: 22 * 60 });
+
+    if (!title) throw new HttpError(400, 'Le titre est requis.');
+    if (!isValidDate(startDate) || !isValidDate(endDate)) throw new HttpError(400, 'Dates invalides.');
+    if (endDate < startDate) throw new HttpError(400, 'La date de fin doit suivre la date de début.');
+    if (endDate < clock().today) throw new HttpError(400, 'La date de fin est déjà passée.');
+
+    const slug = crypto.randomBytes(9).toString('base64url');
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [result] = await conn.query(
+        `INSERT INTO occasions (slug, title, description, start_date, end_date, day_start_min, day_end_min,
+           edit_deadline, creator_id, organization_id, all_members)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [slug, title, description || null, startDate, endDate, dayStart, dayEnd,
+          editDeadline, req.user.id, organizationId, allMembers ? 1 : 0],
+      );
+      await conn.query('INSERT INTO participants (occasion_id, user_id) VALUES (?, ?)', [result.insertId, req.user.id]);
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+    const o = await loadOccasion(slug);
+    if (allMembers) await inviteAllMembers(o.id, organizationId);
+    res.status(201).json(serializeOccasion(o, req.user.id));
+  });
+
+  /** Opening an occasion link automatically associates the visitor with it (and with its organization). */
+  r.get('/occasions/:slug', async (req, res) => {
+    const o = await loadOccasion(req.params.slug);
+    if (o.organization_id) {
+      const newlyInvited = await joinOrganization(o.organization_id, req.user.id);
+      if (req.user.name) {
+        for (const slug of newlyInvited) io.to(roomOf(slug)).emit('participant:upsert', serializeUser(req.user));
+      }
+    }
+
+    const [ins] = await pool.query(
+      'INSERT IGNORE INTO participants (occasion_id, user_id) VALUES (?, ?)',
+      [o.id, req.user.id],
+    );
+    if (ins.affectedRows && req.user.name) {
+      io.to(roomOf(o.slug)).emit('participant:upsert', serializeUser(req.user));
+    }
+    if (!ins.affectedRows && !(await isParticipant(o.id, req.user.id))) {
+      throw new HttpError(403, 'Vous avez été retiré de cette occasion.');
+    }
+
+    const participants = await activeGuests(o.id);
+    const [slots] = await pool.query(
+      `SELECT id, user_id, day, start_min, end_min FROM availabilities
+       WHERE occasion_id = ? ORDER BY day, start_min`,
+      [o.id],
+    );
+    res.json({
+      occasion: { ...serializeOccasion(o, req.user.id), canManageGuests: await canManageGuests(o, req.user.id) },
+      participants,
+      slots: slots.map(serializeSlot),
+    });
+  });
+
+  /** Creator-only settings: title, description, edit deadline, organization. */
+  r.patch('/occasions/:slug', async (req, res) => {
+    const o = await loadOccasion(req.params.slug);
+    if (o.creator_id !== req.user.id) throw new HttpError(403, "Seul le créateur peut modifier l'occasion.");
+    if (o.archived) throw new HttpError(403, 'Cette occasion est archivée et ne peut plus être modifiée.');
+
+    const title = req.body?.title !== undefined ? cleanText(req.body.title, 200) : o.title;
+    const description = req.body?.description !== undefined ? cleanText(req.body.description, 5000) : o.description;
+    const editDeadline = req.body?.editDeadline !== undefined ? parseDeadline(req.body.editDeadline) : o.edit_deadline;
+    if (!title) throw new HttpError(400, 'Le titre est requis.');
+    let organizationId = o.organization_id;
+    if (req.body?.organizationId !== undefined && (req.body.organizationId || null) !== o.organization_id) {
+      organizationId = await parseOrganization(req.body.organizationId, req.user.id);
+    }
+
+    const allMembers = !!organizationId && (req.body?.allMembers !== undefined ? !!req.body.allMembers : !!o.all_members);
+    const { dayStart, dayEnd } = parseDayHours(req.body, { dayStart: o.day_start_min, dayEnd: o.day_end_min });
+
+    await pool.query(
+      `UPDATE occasions SET title = ?, description = ?, edit_deadline = ?, organization_id = ?, all_members = ?,
+         day_start_min = ?, day_end_min = ? WHERE id = ?`,
+      [title, description || null, editDeadline, organizationId, allMembers ? 1 : 0, dayStart, dayEnd, o.id],
+    );
+    if (allMembers) {
+      for (const u of await inviteAllMembers(o.id, organizationId)) {
+        if (u.name) io.to(roomOf(o.slug)).emit('participant:upsert', serializeUser(u));
+      }
+    }
+    const updated = await loadOccasion(o.slug);
+    // Broadcast without the per-user isCreator flag; clients compute it from creatorId.
+    const payload = serializeOccasion(updated, null);
+    io.to(roomOf(o.slug)).emit('occasion:updated', payload);
+    res.json(serializeOccasion(updated, req.user.id));
+  });
+
+  // ---- Guests (creator or organization administrators) ----
+
+  async function loadManagedOccasion(req) {
+    const o = await loadOccasion(req.params.slug);
+    if (!(await canManageGuests(o, req.user.id))) {
+      throw new HttpError(403, "Seuls le créateur et les administrateurs de l'organisation gèrent les invités.");
+    }
+    if (o.archived) throw new HttpError(403, 'Cette occasion est archivée et ne peut plus être modifiée.');
+    return o;
+  }
+
+  /** People who can be added: active organization members not invited yet, and removed guests. */
+  r.get('/occasions/:slug/candidates', async (req, res) => {
+    const o = await loadManagedOccasion(req);
+    const [removed] = await pool.query(
+      `SELECT u.id, u.name, u.email FROM participants p JOIN users u ON u.id = p.user_id
+       WHERE p.occasion_id = ? AND p.removed_at IS NOT NULL AND u.name IS NOT NULL ORDER BY u.name`,
+      [o.id],
+    );
+    let members = [];
+    if (o.organization_id) {
+      [members] = await pool.query(
+        `SELECT u.id, u.name, u.email FROM organization_members m
+         JOIN users u ON u.id = m.user_id
+         LEFT JOIN participants p ON p.occasion_id = ? AND p.user_id = m.user_id
+         WHERE m.organization_id = ? AND m.removed_at IS NULL AND p.user_id IS NULL AND u.name IS NOT NULL
+         ORDER BY u.name`,
+        [o.id, o.organization_id],
+      );
+    }
+    res.json({ members: members.map(serializeUser), removed: removed.map(serializeUser) });
+  });
+
+  r.post('/occasions/:slug/participants', async (req, res) => {
+    const o = await loadManagedOccasion(req);
+    const userIds = [...new Set((Array.isArray(req.body?.userIds) ? req.body.userIds : []).map(Number))].filter(Number.isInteger);
+    if (!userIds.length) throw new HttpError(400, 'Aucune personne sélectionnée.');
+    for (const userId of userIds) {
+      const [rows] = await pool.query('SELECT removed_at FROM participants WHERE occasion_id = ? AND user_id = ?', [o.id, userId]);
+      const wasRemoved = rows.length && rows[0].removed_at;
+      const isMember = o.organization_id && (await isActiveMember(o.organization_id, userId));
+      if (!wasRemoved && !isMember) throw new HttpError(403, "Cette personne ne fait pas partie de l'organisation.");
+      await pool.query(
+        `INSERT INTO participants (occasion_id, user_id) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE removed_at = NULL`,
+        [o.id, userId],
+      );
+    }
+    const participants = await activeGuests(o.id);
+    for (const p of participants.filter((x) => userIds.includes(x.id))) io.to(roomOf(o.slug)).emit('participant:upsert', p);
+    res.json({ participants });
+  });
+
+  /** Removes a guest and their availabilities. Opening the link again does not re-add them. */
+  r.delete('/occasions/:slug/participants/:userId', async (req, res) => {
+    const o = await loadManagedOccasion(req);
+    const userId = Number(req.params.userId);
+    if (userId === o.creator_id) throw new HttpError(400, "Le créateur de l'occasion ne peut pas être retiré.");
+    const [result] = await pool.query(
+      'UPDATE participants SET removed_at = NOW() WHERE occasion_id = ? AND user_id = ? AND removed_at IS NULL',
+      [o.id, userId],
+    );
+    if (!result.affectedRows) throw new HttpError(404, 'Invité introuvable.');
+    await pool.query('DELETE FROM availabilities WHERE occasion_id = ? AND user_id = ?', [o.id, userId]);
+    io.to(roomOf(o.slug)).emit('participant:removed', { userId });
+    res.json({ participants: await activeGuests(o.id) });
+  });
+
+  /** Creator archives the occasion (read-only for everyone), or undoes a manual archive. */
+  r.post('/occasions/:slug/archive', async (req, res) => {
+    const o = await loadOccasion(req.params.slug);
+    if (o.creator_id !== req.user.id) throw new HttpError(403, "Seul le créateur peut archiver l'occasion.");
+    const archive = req.body?.archived !== false;
+    if (!archive && o.ended) throw new HttpError(400, 'Cette occasion est terminée : elle reste archivée.');
+
+    await pool.query('UPDATE occasions SET archived_at = ? WHERE id = ?', [archive ? clock().now : null, o.id]);
+    const updated = await loadOccasion(o.slug);
+    io.to(roomOf(o.slug)).emit('occasion:updated', serializeOccasion(updated, null));
+    res.json(serializeOccasion(updated, req.user.id));
+  });
+
+  /** Adds an availability range; overlapping/adjacent ranges of the same user are merged. */
+  r.post('/occasions/:slug/slots', async (req, res) => {
+    const o = await loadOccasion(req.params.slug);
+    assertEditable(o);
+    if (!req.user.name) throw new HttpError(400, 'Indiquez votre nom et courriel.');
+    if (!(await isParticipant(o.id, req.user.id))) throw new HttpError(403, 'Vous ne participez pas à cette occasion.');
+
+    const { day } = req.body || {};
+    if (!isValidDate(day)) throw new HttpError(400, 'Journée invalide.');
+    if (day < o.start_date || day > o.end_date) throw new HttpError(400, "Cette journée est hors de la période de l'occasion.");
+    const { start, end } = parseRange(req.body, o);
+
+    const slots = await saveMerged(o.id, req.user.id, day, start, end);
+
+    const payload = { userId: req.user.id, day, slots };
+    io.to(roomOf(o.slug)).emit('slots:day', payload);
+    res.status(201).json(payload);
+  });
+
+  /** Changes the hours of one of the user's ranges (drag & resize in the UI). */
+  r.patch('/occasions/:slug/slots/:id', async (req, res) => {
+    const o = await loadOccasion(req.params.slug);
+    assertEditable(o);
+    const id = Number(req.params.id);
+    const [rows] = await pool.query(
+      'SELECT day FROM availabilities WHERE id = ? AND occasion_id = ? AND user_id = ?',
+      [id, o.id, req.user.id],
+    );
+    if (!rows.length) throw new HttpError(404, 'Plage introuvable.');
+    const { start, end } = parseRange(req.body, o);
+    const day = rows[0].day;
+    const payload = { userId: req.user.id, day, slots: await saveMerged(o.id, req.user.id, day, start, end, id) };
+    io.to(roomOf(o.slug)).emit('slots:day', payload);
+    res.json(payload);
+  });
+
+  r.delete('/occasions/:slug/slots/:id', async (req, res) => {
+    const o = await loadOccasion(req.params.slug);
+    assertEditable(o);
+    const [rows] = await pool.query(
+      'SELECT day FROM availabilities WHERE id = ? AND occasion_id = ? AND user_id = ?',
+      [Number(req.params.id), o.id, req.user.id],
+    );
+    if (!rows.length) throw new HttpError(404, 'Plage introuvable.');
+    await pool.query('DELETE FROM availabilities WHERE id = ?', [Number(req.params.id)]);
+
+    const day = rows[0].day;
+    const payload = { userId: req.user.id, day, slots: await daySlots(pool, o.id, req.user.id, day) };
+    io.to(roomOf(o.slug)).emit('slots:day', payload);
+    res.json(payload);
+  });
+
+  return r;
+}
+
+export function errorHandler(err, req, res, _next) {
+  if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON invalide.' });
+  if (err.type === 'entity.too.large') return res.status(413).json({ error: 'Fichier trop volumineux (2 Mo max).' });
+  console.error(err);
+  res.status(500).json({ error: 'Erreur serveur.' });
+}

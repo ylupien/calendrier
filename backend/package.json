@@ -1,0 +1,19 @@
+{
+  "name": "calendrier-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
+    "cookie": "^2.0.1",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.3.0",
+    "mysql2": "^3.24.6",
+    "redis": "^6.3.1",
+    "socket.io": "^4.8.4"
+  }
+}

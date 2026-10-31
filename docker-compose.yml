@@ -1,0 +1,154 @@
+# Démarrage : docker compose up -d   (développement : http://localhost:5173)
+#
+# Redémarrage automatique après un reboot : chaque service a « restart: unless-stopped ».
+# Docker Desktop démarre à l'ouverture de session Windows (réglage « Start Docker Desktop when
+# you sign in ») et relance alors tous les conteneurs du projet, sauf ceux arrêtés volontairement
+# (docker compose stop / down).
+#
+# Publication sur Internet (Cloudflare Tunnel) : services « web » et « tunnel » du profil « public ».
+#   scripts/web.sh publish   → une seule fois : crée le tunnel et le DNS, active le profil, démarre
+#   scripts/web.sh status    → état du tunnel et du site public
+#   scripts/web.sh stop      → retire le site public (le développement local continue)
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-calendar}
+      MYSQL_USER: ${DB_USER:-calendar}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-calendar}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      TZ: ${APP_TIMEZONE:-America/Toronto}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db-data:/var/lib/mysql
+    ports:
+      - "${DB_PUBLIC_PORT:-3307}:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Relie le temps réel (Socket.IO) des serveurs de développement et de production :
+  # une modification faite sur localhost apparaît en direct sur le site public, et inversement.
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]   # messages seulement, rien à conserver
+    user: "999:1000"                  # utilisateur « redis » de l'image : aucun changement d'identité requis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+
+  # API REST + serveur Socket.IO (temps réel)
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    command: npm run dev
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-calendar}
+      DB_USER: ${DB_USER:-calendar}
+      DB_PASSWORD: ${DB_PASSWORD:-calendar}
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Toronto}
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-}   # adresse publique (codes QR)
+      REDIS_URL: redis://redis:6379           # temps réel partagé entre les serveurs
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    volumes:
+      - ./backend/src:/app/src
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Vite + Svelte + Tailwind (proxy /api et /socket.io vers le backend)
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      API_URL: http://backend:3000
+    ports:
+      - "${APP_PORT:-5173}:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
+    depends_on:
+      - backend
+
+  # Production : frontend compilé servi par le backend (API + Socket.IO). C'est ce service que le
+  # tunnel publie (jamais le serveur de développement Vite). Local : http://127.0.0.1:8090
+  web:
+    profiles: [public]
+    build: .
+    image: calendrier-web:latest
+    restart: unless-stopped
+    init: true
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-calendar}
+      DB_USER: ${DB_USER:-calendar}
+      DB_PASSWORD: ${DB_PASSWORD:-calendar}
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Toronto}
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-}   # adresse publique (codes QR)
+      REDIS_URL: redis://redis:6379           # temps réel partagé entre les serveurs
+      COOKIE_SECURE: "true"          # servi en HTTPS par Cloudflare
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8090}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # --- Isolation : lecture seule, aucun privilège, ressources bornées ---
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 384m
+    cpus: 1.0
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # Tunnel Cloudflare : connexion sortante, aucun port ouvert. Relie PUBLIC_HOSTNAME (.env) au service web.
+  # Configuration et identifiants générés par scripts/web.sh dans deploy/cloudflared/ (hors Git).
+  tunnel:
+    profiles: [public]
+    image: cloudflare/cloudflared:2026.10.3
+    restart: unless-stopped
+    depends_on: [web]
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./deploy/cloudflared:/etc/cloudflared:ro
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"   # seul à pouvoir lire les identifiants (mode 600)
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  db-data:

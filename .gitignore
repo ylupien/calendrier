@@ -1,0 +1,17 @@
+# Dépendances et compilations
+node_modules
+dist
+
+# Configuration locale (adresse publique, mots de passe) — modèle : .env.example
+.env
+
+# Identifiants du tunnel Cloudflare, générés par scripts/web.sh
+deploy/
+
+# Logos d'organisations : ils se téléversent dans l'application, pas dans le dépôt
+frontend/public/logo*.png
+
+# Éditeurs / système
+.idea/
+.vscode/
+.DS_Store

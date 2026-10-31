@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# Publication de l'application sur le web par Cloudflare Tunnel (même principe que le projet chess).
+#
+#   scripts/web.sh publish   une seule fois : crée le tunnel et le DNS, active le profil « public », démarre
+#   scripts/web.sh status    état des conteneurs, du tunnel et du site public
+#   scripts/web.sh stop      retire le site public (le développement local continue)
+#   scripts/web.sh logs      journaux du tunnel
+#
+# Ensuite, « docker compose up -d » suffit (COMPOSE_PROFILES=public est ajouté au .env), et le site
+# repart tout seul après un reboot (restart: unless-stopped).
+# Prérequis : cloudflared connecté au compte (« cloudflared tunnel login » → ~/.cloudflared/cert.pem).
+# Adresse publique : PUBLIC_HOSTNAME dans .env (modèle : .env.example).
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="$ROOT/.env"
+
+# Configuration locale (.env, hors Git). Une variable déjà définie dans l'environnement l'emporte.
+if [ -f "$ENV_FILE" ]; then
+  while IFS='=' read -r key value; do
+    [[ "$key" =~ ^[A-Z_]+$ ]] || continue
+    [ -n "${!key:-}" ] || export "$key=$value"
+  done < "$ENV_FILE"
+fi
+PUBLIC_HOSTNAME="${PUBLIC_HOSTNAME:-}"
+TUNNEL_NAME="${TUNNEL_NAME:-disponibilites}"
+ORIGIN_CERT="${ORIGIN_CERT:-$HOME/.cloudflared/cert.pem}"
+case "${1:-}" in publish|status)
+  [ -n "$PUBLIC_HOSTNAME" ] && [ "$PUBLIC_HOSTNAME" != disponibilites.example.com ] || {
+    printf '\033[31mErreur : adresse publique non configurée. Renseignez PUBLIC_HOSTNAME dans .env.\033[0m\n' >&2; exit 1; } ;;
+esac
+DIR="$ROOT/deploy/cloudflared"
+CREDS="$DIR/credentials.json"
+CONFIG="$DIR/config.yml"
+URL="https://$PUBLIC_HOSTNAME"
+
+say() { printf '\033[1m%s\033[0m\n' "$*"; }
+die() { printf '\033[31mErreur : %s\033[0m\n' "$*" >&2; exit 1; }
+
+# Toujours un fichier de configuration minimal : ~/.cloudflared/config.yml (autres tunnels) est ignoré
+EMPTY_CONFIG="$(mktemp)"
+echo "no-autoupdate: true" > "$EMPTY_CONFIG"
+trap 'rm -f "$EMPTY_CONFIG"' EXIT
+cf() { cloudflared tunnel --origincert "$ORIGIN_CERT" --config "$EMPTY_CONFIG" --loglevel error "$@"; }
+compose() { (cd "$ROOT" && HOST_UID="$(id -u)" HOST_GID="$(id -g)" docker compose --profile public "$@"); }
+
+tunnel_id() { cf list --name "$TUNNEL_NAME" --output json 2>/dev/null | jq -r '.[0].id // empty'; }
+
+# Écrit ou remplace KEY=value dans .env
+set_env() {
+  touch "$ENV_FILE"
+  if grep -q "^$1=" "$ENV_FILE"; then sed -i "s|^$1=.*|$1=$2|" "$ENV_FILE"; else echo "$1=$2" >> "$ENV_FILE"; fi
+}
+
+publish() {
+  command -v cloudflared >/dev/null || die "cloudflared n'est pas installé."
+  command -v jq >/dev/null || die "jq n'est pas installé."
+  [ -f "$ORIGIN_CERT" ] || die "certificat introuvable ($ORIGIN_CERT) : lancez « cloudflared tunnel login »."
+  mkdir -p "$DIR" && chmod 700 "$DIR"
+
+  # 1. Tunnel dédié (créé une seule fois ; identifiants récupérés s'ils manquent localement)
+  local id; id="$(tunnel_id)"
+  if [ -z "$id" ]; then
+    say "Création du tunnel « $TUNNEL_NAME »…"
+    cf create --credentials-file "$CREDS" "$TUNNEL_NAME" >/dev/null
+    id="$(tunnel_id)"
+    [ -n "$id" ] || die "le tunnel n'a pas pu être créé."
+  elif [ ! -s "$CREDS" ]; then
+    say "Tunnel « $TUNNEL_NAME » existant : récupération de ses identifiants…"
+    cf token --cred-file "$CREDS" "$TUNNEL_NAME" >/dev/null
+  else
+    say "Tunnel « $TUNNEL_NAME » déjà créé ($id)."
+  fi
+  chmod 600 "$CREDS"
+
+  # 2. Enregistrement DNS : adresse publique → tunnel (jamais écrasé s'il sert à autre chose)
+  say "DNS : $PUBLIC_HOSTNAME → tunnel…"
+  local out
+  if ! out="$(cf route dns "$TUNNEL_NAME" "$PUBLIC_HOSTNAME" 2>&1)"; then
+    die "impossible de créer le DNS de $PUBLIC_HOSTNAME (un enregistrement existe peut-être déjà pour autre chose) :
+$out"
+  fi
+
+  # 3. Configuration du tunnel : le public n'atteint que le service web (production), par le réseau Docker interne
+  cat > "$CONFIG" <<CONF
+# Généré par scripts/web.sh — ne pas commiter (contient l'identifiant du tunnel)
+tunnel: $id
+credentials-file: /etc/cloudflared/credentials.json
+no-autoupdate: true
+ingress:
+  - hostname: $PUBLIC_HOSTNAME
+    service: http://web:3000
+  - service: http_status:404
+CONF
+  chmod 600 "$CONFIG"
+
+  # 4. « docker compose up -d » inclura désormais web + tunnel
+  set_env COMPOSE_PROFILES public
+
+  # 5. Démarrage
+  say "Démarrage des conteneurs…"
+  compose up -d --build
+
+  # 6. Attente de la mise en ligne
+  say "Attente de la mise en ligne de $URL…"
+  for _ in $(seq 1 30); do
+    if [ "$(curl -s -o /dev/null -m 5 -w '%{http_code}' "$URL/")" = 200 ]; then
+      say "✅ En ligne : $URL"
+      return 0
+    fi
+    sleep 2
+  done
+  die "le site ne répond pas encore. Voir : scripts/web.sh logs"
+}
+
+status() {
+  compose ps
+  echo
+  cf info "$TUNNEL_NAME" 2>/dev/null || echo "Tunnel « $TUNNEL_NAME » introuvable : lancez scripts/web.sh publish"
+  echo
+  echo "$URL → HTTP $(curl -s -o /dev/null -m 10 -w '%{http_code}' "$URL/" || true)"
+}
+
+case "${1:-}" in
+  publish) publish ;;
+  status)  status ;;
+  stop)    compose stop tunnel && say "Site public retiré. Le développement local continue sur http://localhost:5173." ;;
+  logs)    compose logs -f tunnel ;;
+  *) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac
