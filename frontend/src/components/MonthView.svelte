@@ -1,7 +1,9 @@
 <script>
   import { toDay, todayStr, minToTime, WEEKDAYS } from '../lib/dates.js';
 
-  let { days, month, byDay, editingByDay, colors, nameOf, inRange, total, onpick } = $props();
+  // highlight: person hovered in the guest list (shown first, the others greyed out).
+  let { days, month, byDay, editingByDay, colors, nameOf, inRange, total, onpick, highlight = null } = $props();
+  const dimmed = (userId) => highlight !== null && userId !== highlight;
 
   const today = todayStr();
   const firstName = (id) => nameOf(id).split(' ')[0];
@@ -12,7 +14,9 @@
       if (!users.has(s.userId)) users.set(s.userId, []);
       users.get(s.userId).push(s);
     }
-    return [...users.entries()];
+    const list = [...users.entries()];
+    // The hovered person comes first so it stays visible among the first three.
+    return highlight === null ? list : list.sort(([a], [b]) => (b === highlight) - (a === highlight));
   }
 </script>
 
@@ -28,7 +32,7 @@
     {@const ratio = total ? users.length / total : 0}
     <button
       class="group relative flex min-h-24 flex-col gap-1 border-b border-r border-slate-100 p-1.5 text-left transition sm:min-h-28
-        {enabled ? 'cursor-pointer bg-white hover:ring-2 hover:ring-inset hover:ring-indigo-400' : 'cursor-not-allowed bg-slate-100'}
+        {enabled ? 'cursor-pointer bg-surface hover:ring-2 hover:ring-inset hover:ring-indigo-400' : 'cursor-not-allowed bg-slate-100 dark:bg-slate-50'}
         {enabled && d.getMonth() !== month ? 'opacity-60' : ''}"
       style={enabled && ratio > 0 ? `background: rgba(16,185,129,${0.06 + ratio * 0.22})` : ''}
       disabled={!enabled}
@@ -47,7 +51,7 @@
       </div>
       <div class="flex min-w-0 flex-col gap-0.5">
         {#each users.slice(0, 3) as [userId, list] (userId)}
-          <div class="flex min-w-0 items-center gap-1 text-[11px] leading-tight text-slate-700">
+          <div class="flex min-w-0 items-center gap-1 text-[11px] leading-tight text-slate-700 transition-[opacity,filter] {dimmed(userId) ? 'opacity-30 grayscale' : ''}">
             <span class="h-2 w-2 shrink-0 rounded-full" style="background:{colors.get(userId)}"></span>
             <span class="truncate"><span class="font-medium">{firstName(userId)}</span>
               <span class="hidden text-slate-500 md:inline">{minToTime(list[0].start)}–{minToTime(list[0].end)}{list.length > 1 ? ` +${list.length - 1}` : ''}</span></span>
@@ -58,7 +62,7 @@
       {#if drafts.length}
         <div class="mt-auto flex flex-wrap gap-1">
           {#each drafts as e (e.userId)}
-            <span class="animate-pulse rounded px-1 text-[10px] font-medium text-white" style="background:{colors.get(e.userId)}" title="{nameOf(e.userId)} modifie cette journée">
+            <span class="animate-pulse rounded px-1 text-[10px] font-medium text-white {dimmed(e.userId) ? 'opacity-30 grayscale' : ''}" style="background:{colors.get(e.userId)}" title="{nameOf(e.userId)} modifie cette journée">
               ✎ {firstName(e.userId)}
             </span>
           {/each}

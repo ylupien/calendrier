@@ -11,10 +11,20 @@
   import OrgLogo from './components/OrgLogo.svelte';
   import LinkDevice from './components/LinkDevice.svelte';
   import LinkClaim from './pages/LinkClaim.svelte';
+  import Privacy from './pages/Privacy.svelte';
+  import Terms from './pages/Terms.svelte';
+  import { REPO_URL } from './lib/project.js';
+  import { theme, nextTheme, THEME_LABELS, THEME_ICONS } from './lib/theme.svelte.js';
+  import { lockScroll } from './lib/scrollLock.js';
 
   let error = $state('');
   let linking = $state(false);
   let menuOpen = $state(false);
+
+  // The page behind the open phone menu must not scroll.
+  $effect(() => {
+    if (menuOpen) return lockScroll();
+  });
 
   // Close the phone menu when the page changes.
   $effect(() => {
@@ -40,7 +50,7 @@
   const occasionSlug = $derived(route.path.match(/^\/o\/([\w-]+)\/?$/)?.[1] ?? null);
 </script>
 
-<header class="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
+<header class="sticky top-0 z-40 border-b border-slate-200 bg-surface/90 backdrop-blur">
   <div class="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:h-16">
     <a href="/" onclick={link} class="flex min-w-0 items-center gap-2.5 text-slate-900 sm:gap-3">
       {#if session.branding}
@@ -62,6 +72,9 @@
         >{n.label}</a>
       {/each}
     </nav>
+    <button class="btn-ghost hidden px-2.5 sm:inline-flex" onclick={nextTheme} title="{THEME_LABELS[theme.mode]} — cliquer pour changer" aria-label={THEME_LABELS[theme.mode]}>
+      {THEME_ICONS[theme.mode]}
+    </button>
     <button class="btn-ghost hidden px-2.5 sm:inline-flex" onclick={() => (linking = true)} title="Utiliser mon compte sur mon cellulaire (code QR)">
       📱<span class="hidden lg:inline">Lier un cellulaire</span>
     </button>
@@ -89,9 +102,9 @@
   </div>
 
   {#if menuOpen}
-    <div class="fixed inset-x-0 bottom-0 top-14 z-40 sm:hidden">
-      <button class="absolute inset-0 cursor-default bg-slate-900/30" aria-label="Fermer le menu" tabindex="-1" onclick={() => (menuOpen = false)}></button>
-      <nav class="relative border-b border-slate-200 bg-white px-3 pb-4 pt-2 shadow-lg">
+    <div class="fixed inset-x-0 bottom-0 top-14 z-40 touch-none sm:hidden">
+      <button class="absolute inset-0 cursor-default bg-black/30" aria-label="Fermer le menu" tabindex="-1" onclick={() => (menuOpen = false)}></button>
+      <nav class="relative border-b border-slate-200 bg-surface px-3 pb-4 pt-2 shadow-lg">
         {#each NAV as n (n.href)}
           <a
             href={n.href}
@@ -103,6 +116,10 @@
         <button class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-base text-slate-700 active:bg-slate-100"
           onclick={() => { menuOpen = false; linking = true; }}>
           <span class="w-6 text-center">📱</span>Lier un cellulaire
+        </button>
+        <button class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-base text-slate-700 active:bg-slate-100" onclick={nextTheme}>
+          <span class="w-6 text-center">{THEME_ICONS[theme.mode]}</span>{THEME_LABELS[theme.mode]}
+          <span class="ml-auto text-xs text-slate-400">changer</span>
         </button>
         <button class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left active:bg-slate-100"
           onclick={() => { menuOpen = false; askProfile(); }}>
@@ -117,7 +134,7 @@
   {/if}
 </header>
 
-<main class="mx-auto max-w-7xl px-4 py-6 sm:py-8">
+<main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:py-8">
   {#if error}
     <div class="card p-6 text-center text-rose-600">Impossible de joindre le serveur : {error}</div>
   {:else if !session.me}
@@ -128,12 +145,29 @@
     {#key occasionSlug}
       <Occasion slug={occasionSlug} />
     {/key}
+  {:else if route.path === '/confidentialite'}
+    <Privacy />
+  {:else if route.path === '/conditions'}
+    <Terms />
   {:else if route.path.startsWith('/organisations')}
     <Organizations />
   {:else}
     <Home />
   {/if}
 </main>
+
+<!-- Authors (stays at the bottom of the screen, even on short pages) -->
+<footer class="border-t border-slate-200">
+  <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-5 text-xs text-slate-500">
+    <span>Conçu par <span class="font-medium text-slate-700">Yanik Lupien</span> et <span class="font-medium text-slate-700">Claude</span></span>
+    <span aria-hidden="true" class="text-slate-300">·</span>
+    <a href="/confidentialite" onclick={link} class="text-link">Confidentialité et témoins</a>
+    <span aria-hidden="true" class="text-slate-300">·</span>
+    <a href="/conditions" onclick={link} class="text-link">Conditions d'utilisation</a>
+    <span aria-hidden="true" class="text-slate-300">·</span>
+    <a href={REPO_URL} target="_blank" rel="noopener" class="text-link" title="Code source sur GitHub, versé dans le domaine public">Code source (domaine public)</a>
+  </div>
+</footer>
 
 {#if linking}
   <LinkDevice onclose={() => (linking = false)} />

@@ -63,6 +63,8 @@ services:
       APP_TIMEZONE: ${APP_TIMEZONE:-America/Toronto}
       PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-}   # adresse publique (codes QR)
       REDIS_URL: redis://redis:6379           # temps réel partagé entre les serveurs
+      LEGAL_CONTACT_NAME: ${LEGAL_CONTACT_NAME:-}   # responsable de la protection des renseignements personnels
+      LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
     volumes:
       - ./backend/src:/app/src
@@ -106,6 +108,8 @@ services:
       APP_TIMEZONE: ${APP_TIMEZONE:-America/Toronto}
       PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-}   # adresse publique (codes QR)
       REDIS_URL: redis://redis:6379           # temps réel partagé entre les serveurs
+      LEGAL_CONTACT_NAME: ${LEGAL_CONTACT_NAME:-}   # responsable de la protection des renseignements personnels
+      LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
       COOKIE_SECURE: "true"          # servi en HTTPS par Cloudflare
     ports:
       - "127.0.0.1:${WEB_PORT:-8090}:3000"

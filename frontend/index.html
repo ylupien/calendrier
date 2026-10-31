@@ -4,10 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#4f46e5" />
     <title>Disponibilités</title>
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // Apply the saved theme before the first paint (no white flash in dark mode).
+      (function () {
+        var mode = 'system';
+        try { mode = localStorage.getItem('theme') || 'system'; } catch (e) {}
+        var dark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+      })();
+    </script>
   </head>
   <body class="bg-slate-50 text-slate-800 antialiased">
-    <div id="app"></div>
+    <div id="app" class="flex min-h-dvh flex-col"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

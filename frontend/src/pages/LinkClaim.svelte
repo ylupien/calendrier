@@ -99,7 +99,7 @@
       <button class="btn-primary w-full py-2.5" disabled={busy} onclick={confirm}>
         {busy ? 'Liaison…' : otherAccount && merge ? 'Fusionner et lier cet appareil' : 'Lier cet appareil'}
       </button>
-      <a href="/" onclick={link} class="block text-center text-sm text-slate-500 hover:text-slate-700">Annuler</a>
+      <a href="/" onclick={link} class="text-link block text-center text-sm">Annuler</a>
     {/if}
   </div>
 </div>

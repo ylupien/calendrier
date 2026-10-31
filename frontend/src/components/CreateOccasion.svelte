@@ -1,17 +1,16 @@
 <script>
   import { api } from '../lib/api.js';
-  import { todayStr } from '../lib/dates.js';
   import { session, askProfile } from '../lib/session.svelte.js';
   import Modal from './Modal.svelte';
   import OrgPicker from './OrgPicker.svelte';
   import DayHoursPicker from './DayHoursPicker.svelte';
+  import DaysPicker from './DaysPicker.svelte';
 
   let { orgs = [], initialOrganizationId = null, onclose, oncreated } = $props();
 
   let title = $state('');
   let description = $state('');
-  let startDate = $state(todayStr());
-  let endDate = $state(todayStr());
+  let days = $state([]); // chosen days, 'YYYY-MM-DD'
   let withDeadline = $state(false);
   let editDeadline = $state('');
   let error = $state('');
@@ -23,10 +22,6 @@
   let dayStart = $state(8 * 60);
   let dayEnd = $state(22 * 60);
 
-  $effect(() => {
-    if (endDate < startDate) endDate = startDate;
-  });
-
   async function create() {
     error = '';
     saving = true;
@@ -34,8 +29,7 @@
       const occasion = await api.createOccasion({
         title,
         description,
-        startDate,
-        endDate,
+        days,
         editDeadline: withDeadline && editDeadline ? editDeadline : null,
         organizationId,
         allMembers: !!organizationId && allMembers,
@@ -71,15 +65,9 @@
       <label class="label" for="oc-desc">Description <span class="font-normal text-slate-400">(facultatif)</span></label>
       <textarea id="oc-desc" class="input" rows="2" bind:value={description} maxlength="5000"></textarea>
     </div>
-    <div class="grid grid-cols-2 gap-3">
-      <div>
-        <label class="label" for="oc-start">Date de début</label>
-        <input id="oc-start" type="date" class="input" bind:value={startDate} required />
-      </div>
-      <div>
-        <label class="label" for="oc-end">Date de fin</label>
-        <input id="oc-end" type="date" class="input" bind:value={endDate} min={startDate} required />
-      </div>
+    <div>
+      <span class="label">Journées</span>
+      <DaysPicker bind:days />
     </div>
     <DayHoursPicker bind:dayStart bind:dayEnd />
     <div class="rounded-xl bg-slate-50 p-3">
@@ -95,7 +83,7 @@
     {#if error}<p class="text-sm text-rose-600">{error}</p>{/if}
     <div class="flex justify-end gap-2 pt-2">
       <button type="button" class="btn-ghost" onclick={onclose}>Annuler</button>
-      <button class="btn-primary" disabled={saving}>{saving ? 'Création…' : "Créer l'occasion"}</button>
+      <button class="btn-primary" disabled={saving || !days.length} title={days.length ? '' : 'Choisissez au moins une journée'}>{saving ? 'Création…' : "Créer l'occasion"}</button>
     </div>
   </form>
 </Modal>

@@ -26,8 +26,6 @@ const SCHEMA = [
     slug VARCHAR(32) NOT NULL UNIQUE,
     title VARCHAR(200) NOT NULL,
     description TEXT NULL,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
     edit_deadline DATETIME NULL,
     creator_id INT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -80,6 +78,16 @@ SCHEMA.push(
 );
 
 SCHEMA.push(
+  // Days open for availabilities, chosen one by one when the occasion is created.
+  `CREATE TABLE IF NOT EXISTS occasion_days (
+    occasion_id INT NOT NULL,
+    day DATE NOT NULL,
+    PRIMARY KEY (occasion_id, day),
+    CONSTRAINT fk_oday_occ FOREIGN KEY (occasion_id) REFERENCES occasions(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+);
+
+SCHEMA.push(
   // One-time tokens shown as a QR code to link another device (phone) to the same user.
   `CREATE TABLE IF NOT EXISTS link_tokens (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -116,8 +124,8 @@ const COLUMNS = [
     // Hours of the day shown and allowed for availabilities (minutes; 0–1440 = whole day).
     table: 'occasions',
     column: 'day_start_min',
-    sql: `ALTER TABLE occasions ADD COLUMN day_start_min SMALLINT NOT NULL DEFAULT 0 AFTER end_date,
-          ADD COLUMN day_end_min SMALLINT NOT NULL DEFAULT 1440 AFTER day_start_min`,
+    sql: `ALTER TABLE occasions ADD COLUMN day_start_min SMALLINT NOT NULL DEFAULT 0,
+          ADD COLUMN day_end_min SMALLINT NOT NULL DEFAULT 1440`,
   },
   {
     // Removed by the owner: kept so that opening a link does not re-add the person automatically.
@@ -141,11 +149,44 @@ const COLUMNS = [
 
 async function addMissingColumns() {
   for (const { table, column, sql } of COLUMNS) {
-    const [rows] = await pool.query(
-      `SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
-      [table, column],
+    if (!(await hasColumn(table, column))) await pool.query(sql);
+  }
+}
+
+const hasColumn = async (table, column) => {
+  const [rows] = await pool.query(
+    `SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    [table, column],
+  );
+  return rows.length > 0;
+};
+
+/**
+ * Former format: an occasion covered every day from start_date to end_date.
+ * Each of those days becomes a row of occasion_days, then the two columns are dropped.
+ */
+async function migrateDateRangeToDays() {
+  if (!(await hasColumn('occasions', 'start_date'))) return;
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('SET SESSION cte_max_recursion_depth = 100000');
+    await conn.query(
+      `INSERT IGNORE INTO occasion_days (occasion_id, day)
+       WITH RECURSIVE d AS (
+         SELECT id, start_date AS day, end_date FROM occasions
+         UNION ALL
+         SELECT id, day + INTERVAL 1 DAY, end_date FROM d WHERE day < end_date
+       )
+       SELECT id, day FROM d`,
     );
-    if (!rows.length) await pool.query(sql);
+    const [missing] = await conn.query(
+      'SELECT COUNT(*) AS n FROM occasions o WHERE NOT EXISTS (SELECT 1 FROM occasion_days d WHERE d.occasion_id = o.id)',
+    );
+    if (Number(missing[0].n) > 0) throw new Error(`${missing[0].n} occasion(s) sans jour après migration : colonnes conservées`);
+    await conn.query('ALTER TABLE occasions DROP COLUMN start_date, DROP COLUMN end_date');
+    console.log('[db] dates de début/fin migrées vers occasion_days');
+  } finally {
+    conn.release();
   }
 }
 
@@ -155,6 +196,7 @@ export async function migrate({ retries = 30, delayMs = 2000 } = {}) {
     try {
       for (const sql of SCHEMA) await pool.query(sql);
       await addMissingColumns();
+      await migrateDateRangeToDays();
       return;
     } catch (err) {
       if (attempt >= retries) throw err;

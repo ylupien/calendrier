@@ -155,7 +155,7 @@
       <section class="space-y-3 border-t border-slate-200 pt-5">
         <h3 class="text-sm font-semibold text-slate-800">Logo</h3>
         <div class="flex flex-wrap items-center gap-4">
-          <div class="flex h-20 min-w-40 items-center justify-center rounded-xl border border-dashed border-slate-300 p-3 {org.logoDarkBg ? 'bg-slate-900' : 'bg-white'}">
+          <div class="flex h-20 min-w-40 items-center justify-center rounded-xl border border-dashed border-slate-300 p-3 {org.logoDarkBg ? 'bg-[#0f172a]' : 'bg-surface'}">
             {#if org.logoUrl}
               <img src={org.logoUrl} alt="Logo" class="h-12 w-auto max-w-56 object-contain" />
             {:else}
@@ -198,7 +198,7 @@
                   {#if m.isOwner}<span class="text-xs font-normal text-slate-400">· responsable</span>
                   {:else if m.isAdmin}<span class="text-xs font-normal text-indigo-600">· admin</span>{/if}
                 </div>
-                <div class="truncate text-xs text-slate-500">{m.email}</div>
+                {#if m.email}<div class="truncate text-xs text-slate-500">{m.email}</div>{/if}
               </div>
               <label class="flex shrink-0 items-center gap-1.5 text-sm {m.isOwner ? 'text-slate-400' : 'text-slate-700'}">
                 <input type="checkbox" class="h-4 w-4 rounded accent-indigo-600" checked={m.isAdmin} disabled={m.isOwner}
@@ -231,7 +231,7 @@
                 <li class="flex items-center gap-3 px-3 py-2">
                   <div class="min-w-0 flex-1 text-slate-500">
                     <div class="truncate text-sm">{m.name}</div>
-                    <div class="truncate text-xs">{m.email}</div>
+                    {#if m.email}<div class="truncate text-xs">{m.email}</div>{/if}
                   </div>
                   <button class="btn-outline shrink-0 px-2.5 py-1 text-xs" onclick={() => restoreMember(m)}>Réintégrer</button>
                 </li>

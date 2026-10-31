@@ -8,7 +8,7 @@
 </script>
 
 {#if org?.logoUrl}
-  <span class="inline-flex shrink-0 items-center rounded-md {org.logoDarkBg ? 'bg-slate-900 px-2 py-1' : ''}">
+  <span class="inline-flex shrink-0 items-center rounded-md {org.logoDarkBg ? 'bg-[#0f172a] px-2 py-1' : ''}">
     <img src={org.logoUrl} alt={org.name} class="{size} w-auto max-w-48 object-contain" />
   </span>
 {:else if org}

@@ -4,8 +4,10 @@
   import Modal from './Modal.svelte';
   import OrgPicker from './OrgPicker.svelte';
   import DayHoursPicker from './DayHoursPicker.svelte';
+  import DaysPicker from './DaysPicker.svelte';
 
-  let { occasion, onclose, onsaved } = $props();
+  // slots: current availabilities, to warn about those lost when a day is removed.
+  let { occasion, slots = [], onclose, onsaved } = $props();
 
   // Form fields start from the current values (intentionally not reactive).
   // svelte-ignore state_referenced_locally
@@ -24,7 +26,12 @@
   let dayStart = $state(occasion.dayStart);
   // svelte-ignore state_referenced_locally
   let dayEnd = $state(occasion.dayEnd);
+  // svelte-ignore state_referenced_locally
+  let days = $state([...(occasion.days ?? [])]);
   let orgs = $state([]);
+
+  const removedDays = $derived((occasion.days ?? []).filter((d) => !days.includes(d)));
+  const lostSlots = $derived(slots.filter((s) => removedDays.includes(s.day)).length);
   let error = $state('');
   let saving = $state(false);
 
@@ -34,6 +41,7 @@
 
   async function submit(e) {
     e.preventDefault();
+    if (lostSlots && !confirm(`${lostSlots} plage${lostSlots > 1 ? 's' : ''} de disponibilité ser${lostSlots > 1 ? 'ont' : 'a'} supprimée${lostSlots > 1 ? 's' : ''} avec les journées retirées. Continuer ?`)) return;
     saving = true;
     error = '';
     try {
@@ -45,6 +53,7 @@
         allMembers: !!organizationId && allMembers,
         dayStart,
         dayEnd,
+        days,
       }));
     } catch (err) {
       error = err.message;
@@ -66,6 +75,16 @@
       <label class="label" for="os-desc">Description</label>
       <textarea id="os-desc" class="input" rows="3" bind:value={description} maxlength="5000"></textarea>
     </div>
+    <div>
+      <span class="label">Journées</span>
+      <DaysPicker bind:days />
+      {#if lostSlots}
+        <p class="mt-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          ⚠️ {lostSlots} plage{lostSlots > 1 ? 's' : ''} de disponibilité ser{lostSlots > 1 ? 'ont' : 'a'} supprimée{lostSlots > 1 ? 's' : ''}
+          avec {removedDays.length > 1 ? 'les journées retirées' : 'la journée retirée'}.
+        </p>
+      {/if}
+    </div>
     <DayHoursPicker bind:dayStart bind:dayEnd />
     <div class="rounded-xl bg-slate-50 p-3">
       <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -79,7 +98,7 @@
     {#if error}<p class="text-sm text-rose-600">{error}</p>{/if}
     <div class="flex justify-end gap-2 pt-2">
       <button type="button" class="btn-ghost" onclick={onclose}>Annuler</button>
-      <button class="btn-primary" disabled={saving}>Enregistrer</button>
+      <button class="btn-primary" disabled={saving || !days.length}>Enregistrer</button>
     </div>
   </form>
 </Modal>

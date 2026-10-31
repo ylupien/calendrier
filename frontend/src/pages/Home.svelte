@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { api } from '../lib/api.js';
   import { navigate, link } from '../lib/router.svelte.js';
-  import { fmtShort, fmtMedium, todayStr } from '../lib/dates.js';
+  import { fmtOccasionDays, todayStr } from '../lib/dates.js';
   import CreateOccasion from '../components/CreateOccasion.svelte';
   import CopyLink from '../components/CopyLink.svelte';
   import OrgLogo from '../components/OrgLogo.svelte';
@@ -14,7 +14,7 @@
   let error = $state('');
   let creating = $state(false);
   let orgs = $state([]); // for the organization picker of a new occasion
-  let tab = $state('active'); // 'active' | 'archived'
+  let tab = $state('active'); // 'active' | 'managed' | 'archived'
   // 'all' | 'none' (personal occasions) | organization id (as string); remembered per browser
   let orgFilter = $state(readFilter());
 
@@ -67,11 +67,15 @@
   );
 
   const today = todayStr();
-  const current = $derived(filtered.filter((o) => !o.archived && o.startDate <= today));
-  const upcoming = $derived(filtered.filter((o) => !o.archived && o.startDate > today));
-  const archived = $derived(filtered.filter((o) => o.archived).sort((a, b) => b.endDate.localeCompare(a.endDate)));
+  // Current: its first day has come; upcoming: it has not started yet.
+  const current = $derived(filtered.filter((o) => !o.archived && o.firstDay <= today));
+  const upcoming = $derived(filtered.filter((o) => !o.archived && o.firstDay > today));
+  const archived = $derived(filtered.filter((o) => o.archived).sort((a, b) => (b.lastDay ?? '').localeCompare(a.lastDay ?? '')));
+  // Managed: created by me, or in an organization I own / administer.
+  const managedActive = $derived(filtered.filter((o) => o.canManage && !o.archived));
+  const managedArchived = $derived(archived.filter((o) => o.canManage));
 
-  const range = (o) => (o.startDate === o.endDate ? fmtMedium(o.startDate) : `${fmtShort(o.startDate)} → ${fmtMedium(o.endDate)}`);
+  const range = fmtOccasionDays;
 
   async function archive(e, o) {
     e.preventDefault();
@@ -97,6 +101,13 @@
   }
 </script>
 
+{#snippet crown(o)}
+  <!-- Occasions I manage: created by me, or in an organization I own / administer -->
+  <span class="ml-auto shrink-0 text-base leading-none"
+    title={o.isCreator ? 'Vous avez créé cette occasion' : "Vous administrez l'organisation de cette occasion"}
+    aria-label={o.isCreator ? 'Créée par vous' : 'Organisation administrée par vous'}>👑</span>
+{/snippet}
+
 {#snippet occasionCard(o)}
   <a
     href="/o/{o.slug}"
@@ -107,18 +118,19 @@
       <div class="flex items-center gap-2 text-xs text-slate-500">
         <OrgLogo org={o.organization} size="h-6" />
         <span class="truncate">{o.organization.name}</span>
-        {#if o.allMembers}<span class="rounded-full bg-slate-100 px-2 py-0.5">Tous les membres</span>{/if}
+        {#if o.allMembers}<span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5">Tous les membres</span>{/if}
+        {#if o.canManage}{@render crown(o)}{/if}
       </div>
     {/if}
     <div class="flex items-start justify-between gap-3">
       <h3 class="font-semibold text-slate-900 group-hover:text-indigo-600">{o.title}</h3>
       <div class="flex shrink-0 gap-1">
-        {#if o.isCreator}<span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">Créateur</span>{/if}
         {#if o.archived}
           <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Archivée</span>
         {:else if o.editClosed}
           <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">Édition fermée</span>
         {/if}
+        {#if o.canManage && !o.organization}{@render crown(o)}{/if}
       </div>
     </div>
     {#if o.description}<p class="line-clamp-2 text-sm text-slate-500">{o.description}</p>{/if}
@@ -166,10 +178,14 @@
   </div>
 {:else}
   <div class="mb-6 flex flex-col-reverse gap-3 border-b border-slate-200 sm:flex-row sm:items-end sm:justify-between">
-    <div class="flex gap-1">
-      {#each [{ id: 'active', label: 'En cours et à venir', n: current.length + upcoming.length }, { id: 'archived', label: 'Archives', n: archived.length }] as t (t.id)}
+    <div class="-mb-px flex gap-1 overflow-x-auto">
+      {#each [
+        { id: 'active', label: 'En cours et à venir', n: current.length + upcoming.length },
+        { id: 'managed', label: 'Que je gère', n: managedActive.length },
+        { id: 'archived', label: 'Archives', n: archived.length },
+      ] as t (t.id)}
         <button
-          class="-mb-px border-b-2 px-4 py-2 text-sm font-medium transition {tab === t.id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}"
+          class="shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition sm:px-4 {tab === t.id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}"
           onclick={() => (tab = t.id)}
         >
           {t.label}
@@ -205,6 +221,27 @@
         <p class="py-8 text-center text-slate-500">
           Aucune occasion en cours ou à venir{orgFilter === 'all' ? '' : ' pour ce filtre'}.
         </p>
+      {/if}
+    </div>
+  {:else if tab === 'managed'}
+    <p class="mb-4 text-sm text-slate-500">
+      Les occasions que vous avez créées, et celles des organisations dont vous êtes responsable ou administrateur.
+    </p>
+    <div class="space-y-10">
+      {#if managedActive.length}
+        <section>
+          <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">En cours et à venir</h2>
+          {@render grid(managedActive)}
+        </section>
+      {/if}
+      {#if managedArchived.length}
+        <section>
+          <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Archivées</h2>
+          {@render grid(managedArchived)}
+        </section>
+      {/if}
+      {#if !managedActive.length && !managedArchived.length}
+        <p class="py-8 text-center text-slate-500">Vous ne gérez aucune occasion{orgFilter === 'all' ? '' : ' pour ce filtre'}.</p>
       {/if}
     </div>
   {:else if archived.length}

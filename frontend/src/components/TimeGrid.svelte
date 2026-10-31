@@ -1,10 +1,13 @@
 <script>
   import { onMount } from 'svelte';
   import { minToTime } from '../lib/dates.js';
+  import { initials } from '../lib/colors.js';
 
   // columns: [{ key, day, title, subtitle?, color?, today?, enabled, lanes: [{ userId, slots, drafts }] }]
   // from / to: hours of the day shown (minutes), set per occasion.
-  let { columns, colors, nameOf, onpick, showNames = false, overlap = null, total = 0, from = 0, to = 1440 } = $props();
+  let { columns, colors, nameOf, onpick, showNames = false, overlap = null, total = 0, from = 0, to = 1440, highlight = null } = $props();
+  // Hovering a guest greys out everybody else's ranges.
+  const dimmed = (userId) => highlight !== null && userId !== highlight;
 
   const HOUR = 44; // px per hour
   // One row per hour, starting at the occasion's first hour.
@@ -24,6 +27,11 @@
   // Compact time label ("9h–10h30") so it fits narrow lanes.
   const short = (m) => `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}`;
   const height = (s, e) => Math.max(((clip(e) - clip(s)) / 60) * HOUR, 14);
+
+  // Narrow bars: one fixed-width lane per person (at most 48 px), the group centered in the day.
+  const LANE = 48;
+  const laneW = (n) => `min(calc((100% - 4px) / ${n}), ${LANE}px)`;
+  const laneBox = (li, n) => `left:calc(50% - ${n} * ${laneW(n)} / 2 + ${li} * ${laneW(n)} + 1px);width:calc(${laneW(n)} - 2px)`;
 
   function pick(e, col) {
     if (!col.enabled) return;
@@ -63,7 +71,7 @@
         <div class="w-20 shrink-0 border-l border-slate-200 px-1 py-2 text-center text-xs font-semibold text-emerald-700">Commun</div>
       {/if}
       {#each columns as col (col.key)}
-        <div class="flex-1 border-l border-slate-200 px-1 py-2 text-center {showNames ? 'min-w-28' : ''} {col.enabled ? '' : 'bg-slate-100 text-slate-300'}">
+        <div class="flex-1 border-l border-slate-200 px-1 py-2 text-center {showNames ? 'min-w-28' : ''} {col.enabled ? '' : 'bg-slate-100 text-slate-300 dark:bg-slate-50'}">
           {#if showNames}
             <div class="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700">
               <span class="h-2.5 w-2.5 rounded-full" style="background:{col.color}"></span>
@@ -106,30 +114,39 @@
         {#each columns as col (col.key)}
           <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
           <div
-            class="relative flex-1 border-l border-slate-200 {showNames ? 'min-w-28' : ''} {col.enabled ? 'cursor-pointer bg-white hover:bg-indigo-50/40' : 'cursor-not-allowed bg-slate-100'}"
+            class="relative flex-1 border-l border-slate-200 {showNames ? 'min-w-28' : ''} {col.enabled ? 'cursor-pointer bg-surface hover:bg-indigo-50/40' : 'cursor-not-allowed bg-slate-100 dark:bg-slate-50'}"
             onclick={(e) => pick(e, col)}
           >
             {#each hours as h (h)}<div class="border-b border-slate-100" style="height:{HOUR}px"></div>{/each}
 
             {#each col.lanes as lane, li (lane.userId)}
-              {@const w = 100 / col.lanes.length}
+              {@const n = col.lanes.length}
               {@const color = colors.get(lane.userId)}
               {#each lane.slots.filter(inView) as s (s.id)}
+                {@const h = height(s.start, s.end)}
+                <!-- Start time at the top, person's initials in the middle, end time at the bottom -->
                 <div
-                  class="pointer-events-none absolute overflow-hidden rounded-md border-l-4 px-1 py-0.5 text-[10px] leading-tight shadow-sm {s.live ? 'z-10 ring-2 ring-offset-1' : ''} {s.deleting ? 'opacity-30' : ''}"
-                  style="top:{top(s.start)}px;height:{height(s.start, s.end)}px;left:calc({li * w}% + 2px);width:calc({w}% - 4px);background:{color}BF;border-color:{color};color:#fff;--tw-ring-color:{color}"
+                  class="pointer-events-none absolute flex flex-col items-center overflow-hidden rounded-md py-0.5 text-center text-[10px] leading-tight text-white shadow-sm
+                    transition-[opacity,filter] {h >= 40 ? 'justify-between' : 'justify-center'} {s.live ? 'z-10 ring-2 ring-offset-1' : ''} {s.deleting ? 'opacity-30' : ''} {dimmed(lane.userId) ? 'opacity-25 grayscale' : ''}"
+                  style="top:{top(s.start)}px;height:{h}px;{laneBox(li, n)};background:{color}BF;--tw-ring-color:{color}"
                   title="{nameOf(lane.userId)} · {minToTime(s.start)}–{minToTime(s.end)}"
                 >
-                  {#if !showNames}<div class="truncate font-semibold">{nameOf(lane.userId)}</div>{/if}
-                  <div class="break-words">{short(s.start)}–{short(s.end)}</div>
+                  {#if h >= 40}
+                    <span>{short(s.start)}</span>
+                    {#if !showNames}<span class="text-[11px] font-bold">{initials(nameOf(lane.userId))}</span>{/if}
+                    <span>{short(s.end)}</span>
+                  {:else}
+                    <!-- Too short for three lines: initials (week) or start time (day) -->
+                    <span class="font-semibold">{showNames ? short(s.start) : initials(nameOf(lane.userId))}</span>
+                  {/if}
                 </div>
               {/each}
               {#each lane.drafts.filter(inView) as d (d.userId)}
                 <div
-                  class="pointer-events-none absolute animate-pulse overflow-hidden rounded-md border-2 border-dashed px-1 text-[10px] font-semibold"
-                  style="top:{top(d.start)}px;height:{height(d.start, d.end)}px;left:calc({li * w}% + 2px);width:calc({w}% - 4px);border-color:{color};color:{color};background:{color}11"
+                  class="pointer-events-none absolute flex animate-pulse items-start justify-center {dimmed(lane.userId) ? 'opacity-25 grayscale' : ''} overflow-hidden rounded-md border-2 border-dashed pt-0.5 text-[10px] font-semibold"
+                  style="top:{top(d.start)}px;height:{height(d.start, d.end)}px;{laneBox(li, n)};border-color:{color};color:{color};background:{color}11"
                   title="{nameOf(lane.userId)} est en train de modifier"
-                >✎ {nameOf(lane.userId).split(' ')[0]}</div>
+                >✎ {initials(nameOf(lane.userId))}</div>
               {/each}
             {/each}
           </div>

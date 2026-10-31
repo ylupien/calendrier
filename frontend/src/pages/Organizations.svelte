@@ -3,7 +3,7 @@
   import { api } from '../lib/api.js';
   import { navigate, link } from '../lib/router.svelte.js';
   import { session, askProfile } from '../lib/session.svelte.js';
-  import { fmtShort, fmtMedium } from '../lib/dates.js';
+  import { fmtOccasionDays } from '../lib/dates.js';
   import OrgLogo from '../components/OrgLogo.svelte';
   import OrganizationEditor from '../components/OrganizationEditor.svelte';
   import CreateOccasion from '../components/CreateOccasion.svelte';
@@ -34,10 +34,10 @@
 
   /** Current and upcoming occasions of an organization (archived ones are counted only). */
   const occasionsOf = (orgId) => occasions.filter((o) => o.organization?.id === orgId);
-  const range = (o) => (o.startDate === o.endDate ? fmtMedium(o.startDate) : `${fmtShort(o.startDate)} → ${fmtMedium(o.endDate)}`);
+  const range = fmtOccasionDays;
 </script>
 
-<div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
   <div>
     <h1 class="text-2xl font-bold text-slate-900">Mes organisations</h1>
     <p class="mt-1 text-slate-500">Les organisations dont vous êtes responsable ou membre.</p>
@@ -90,8 +90,8 @@
             <ul class="space-y-1">
               {#each active as occ (occ.id)}
                 <li>
-                  <a href="/o/{occ.slug}" onclick={link} class="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
-                    <span class="truncate font-medium text-slate-800">{occ.title}</span>
+                  <a href="/o/{occ.slug}" onclick={link} class="group flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50">
+                    <span class="text-link truncate font-medium group-hover:underline">{occ.title}</span>
                     <span class="shrink-0 text-xs text-slate-500">{range(occ)}</span>
                   </a>
                 </li>

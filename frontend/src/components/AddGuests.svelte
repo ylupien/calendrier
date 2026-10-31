@@ -60,7 +60,7 @@
               <input type="checkbox" class="h-4 w-4 rounded accent-indigo-600" checked={selected.has(p.id)} onchange={() => toggle(p.id)} />
               <span class="min-w-0">
                 <span class="block truncate text-sm font-medium text-slate-800">{p.name}</span>
-                <span class="block truncate text-xs text-slate-500">{p.email}</span>
+                {#if p.email}<span class="block truncate text-xs text-slate-500">{p.email}</span>{/if}
               </span>
             </label>
           </li>

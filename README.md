@@ -9,12 +9,28 @@ Aucun compte ni mot de passe : chaque visiteur est reconnu par un cookie permane
 identité sur un autre appareil grâce à un code QR.
 
 Interface en français. Stack : **Svelte 5 + Vite + Tailwind CSS 4** (frontend), **Node.js + Express 5 +
-Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**.
+Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**. Code versé dans le
+**domaine public** ([Unlicense](LICENSE)).
+
+---
+
+## Aperçu
+
+*Captures réalisées avec des données de démonstration (personnes, organisations et occasions fictives).*
+
+| Calendrier d'une occasion (vue Semaine) | Rapport : meilleurs moments (mode sombre) |
+|---|---|
+| ![Vue Semaine : barres de disponibilité de chaque invité, avec heure de début, initiales et heure de fin](docs/captures/calendrier-semaine.png) | ![Rapport : carte de chaleur et meilleurs moments, en mode sombre](docs/captures/rapport-sombre.png) |
+
+| Mes occasions | Éditeur de plages sur cellulaire |
+|---|---|
+| ![Liste des occasions avec logos d'organisations et couronne pour celles que l'on gère](docs/captures/mes-occasions.png) | <img src="docs/captures/mobile-editeur.png" alt="Éditeur de plages sur cellulaire : deux lignes avant-midi / après-midi" width="300"> |
 
 ---
 
 ## Sommaire
 
+- [Aperçu](#aperçu)
 - [Fonctionnalités](#fonctionnalités)
 - [Démarrage rapide](#démarrage-rapide)
 - [Architecture](#architecture)
@@ -26,25 +42,34 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 - [Développement](#développement)
 - [Structure du projet](#structure-du-projet)
 - [Sécurité](#sécurité)
+- [Confidentialité, conditions et licence](#confidentialité-conditions-et-licence)
 
 ---
 
 ## Fonctionnalités
 
 **Occasions**
-- Titre, description, date de début et de fin, **heures de la journée** (ex. 9 h → 22 h) et date de fin d'édition facultative.
+- Titre, description, **journées choisies une à une** dans un calendrier (clic, glisser, ou tout un jour de la semaine),
+  **heures de la journée** (ex. 9 h → 22 h) et date de fin d'édition facultative. Le créateur peut ajouter ou retirer
+  des journées ensuite ; retirer une journée supprime ses plages.
 - Lien de partage : l'ouvrir associe automatiquement le visiteur à l'occasion.
-- Liste « Mes occasions » avec onglets *En cours et à venir* / *Archives* et filtre par organisation.
-- Archivage automatique à la date de fin, ou manuel par le créateur (annulable tant que la date n'est pas passée).
+- Liste « Mes occasions » avec onglets *En cours et à venir* / *Que je gère* / *Archives* et filtre par organisation.
+  Une couronne 👑 signale les occasions que l'on gère (créées par soi, ou d'une organisation que l'on administre).
+- Archivage automatique après la dernière journée, ou manuel par le créateur (annulable tant qu'elle n'est pas passée).
   Une occasion archivée ou dont l'édition est fermée est en lecture seule.
 
 **Calendrier et plages**
-- Vues **Jour**, **Semaine** et **Mois** (semaines du dimanche au samedi). Les jours hors de l'occasion sont grisés.
+- Vues **Jour**, **Semaine** et **Mois** (semaines du dimanche au samedi). Seules les journées choisies sont ouvertes,
+  les autres sont grisées ; dans l'éditeur, ‹ › passent d'une journée choisie à la suivante.
+- En vues Jour et Semaine, chaque plage est une barre étroite : heure de début en haut, initiales de la personne au
+  milieu, heure de fin en bas.
 - Un clic sur une journée ouvre l'éditeur de plages :
   - **ordinateur** : timeline horizontale ; cliquer ou glisser pour créer, déplacer ou étirer une plage, la glisser hors de la ligne pour la supprimer ;
-  - **cellulaire** : timeline verticale tactile ; toucher pour créer, poignées pour redimensionner, ✥ pour déplacer.
+  - **cellulaire** : deux lignes, *avant-midi* et *après-midi*, pour voir toute la journée d'un coup ; toucher ou glisser
+    pour créer, poignées pour redimensionner, glisser pour déplacer (même d'une ligne à l'autre). « Nouvelle plage »
+    ouvre une petite fenêtre (heures de début et de fin, ajouts rapides).
 - Plusieurs plages par jour, sans chevauchement (deux plages bout à bout sont fusionnées). Pas de 15 minutes.
-- Champs d'heure liés à la plage sélectionnée, ajouts rapides (Matin, Après-midi, Soirée, Journée).
+- Sur ordinateur : champs d'heure liés à la plage sélectionnée, ajouts rapides (Matin, Après-midi, Soirée, Journée).
 
 **Rapport**
 - Carte de chaleur de toutes les plages superposées : plus la couleur est foncée, plus il y a de monde disponible ;
@@ -52,7 +77,9 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 - « Meilleurs moments » (top 5), liés par survol à la carte de chaleur ; un clic ouvre la journée.
 
 **Personnes**
-- Nom et courriel demandés une seule fois ; la personne apparaît dans la liste des invités, visible de tous.
+- Nom demandé une seule fois (courriel facultatif) ; la personne apparaît dans la liste des invités, visible de tous.
+- Liste des invités : survoler un nom grise les plages des autres dans le calendrier ; cliquer sur des noms (icône 👁)
+  n'affiche temporairement que ces personnes (« Tout afficher » pour revenir).
 - Présence en direct : qui est en ligne, qui modifie quelle journée (la plage bouge chez les autres pendant qu'on la déplace).
 - Le créateur d'une occasion (ou un admin de son organisation) peut **retirer** ou **ajouter** des invités.
 
@@ -69,6 +96,8 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 
 **Interface**
 - Adaptée au cellulaire (menu compact, éditeur tactile) et à l'ordinateur.
+- **Mode sombre** : suit le thème de l'appareil par défaut ; bouton ☀️ / 🌙 / 🖥️ pour forcer clair ou sombre (mémorisé).
+- Quand une fenêtre est ouverte, la page derrière ne défile plus.
 
 ---
 
@@ -140,7 +169,8 @@ Variables du fichier `.env` (modèle : `.env.example`) :
   et organisations sont rattachées au compte de l'ordinateur ; l'ancien compte est supprimé.
 
 ### Règles
-- **Plages** : dans les dates et les heures de l'occasion, sans chevauchement pour une même personne.
+- **Journées** : au moins une, aucune dans le passé à l'ajout ; stockées dans la table `occasion_days`.
+- **Plages** : sur une journée choisie, dans les heures de l'occasion, sans chevauchement pour une même personne.
 - **Lecture seule** : occasion archivée, ou date de fin d'édition dépassée.
 - **Retrait** : un invité ou un membre retiré n'est pas réintégré en rouvrant un lien ; seul un responsable,
   un admin ou le créateur peut le réintégrer.
@@ -183,8 +213,8 @@ Préfixe `/api`. Toutes les routes identifient le visiteur par son cookie. Les h
 | Méthode | Route | Description |
 |---------|-------|-------------|
 | GET / PUT | `/me` | Profil (nom, courriel) |
-| GET / POST | `/occasions` | Mes occasions / créer |
-| GET / PATCH | `/occasions/:slug` | Détail (rejoint l'occasion) / paramètres |
+| GET / POST | `/occasions` | Mes occasions / créer `{ title, days: ['YYYY-MM-DD', …], dayStart, dayEnd, … }` |
+| GET / PATCH | `/occasions/:slug` | Détail avec `days` (rejoint l'occasion) / paramètres (dont `days`) |
 | POST | `/occasions/:slug/archive` | Archiver `{ archived }` |
 | POST · PATCH · DELETE | `/occasions/:slug/slots[/:id]` | Plages : ajouter `{ day, start, end }`, modifier, supprimer |
 | GET | `/occasions/:slug/candidates` | Personnes ajoutables comme invités |
@@ -240,6 +270,8 @@ Après une modification du code, reconstruire la production : `docker compose up
 ├── docker-compose.yml        services (développement, Redis, production, tunnel)
 ├── Dockerfile                image de production (frontend compilé + backend)
 ├── scripts/web.sh            publication Cloudflare Tunnel
+├── docs/captures/            captures d'écran du README
+├── LICENSE                   domaine public (Unlicense)
 ├── backend/
 │   └── src/
 │       ├── index.js          serveur HTTP, en-têtes de sécurité, fichiers statiques
@@ -253,10 +285,10 @@ Après une modification du code, reconstruire la production : `docker compose up
 └── frontend/
     └── src/
         ├── App.svelte        en-tête, menu, routage
-        ├── pages/            Home, Occasion, Organizations, LinkClaim
+        ├── pages/            Home, Occasion, Organizations, LinkClaim, Privacy, Terms
         ├── components/       calendrier (Calendar, MonthView, TimeGrid, DayOverlay), Report,
         │                     GuestList, éditeurs d'occasion et d'organisation, LinkDevice…
-        └── lib/              API, dates, socket, routeur, session
+        └── lib/              API, dates, socket, routeur, session, thème, verrouillage du défilement
 ```
 
 ---
@@ -270,3 +302,16 @@ Après une modification du code, reconstruire la production : `docker compose up
   `no-new-privileges`, mémoire limitée. Le port de `web` n'est publié que sur `127.0.0.1`.
 - Les fichiers sensibles (`.env`, `deploy/`) sont exclus de Git.
 - Les mots de passe MySQL par défaut sont destinés au développement : changez-les dans `.env`.
+
+---
+
+## Confidentialité, conditions et licence
+
+- Pages **Confidentialité et témoins** (`/confidentialite`) et **Conditions d'utilisation** (`/conditions`), liées dans le
+  pied de page. Elles suivent la loi québécoise sur la protection des renseignements personnels (Loi 25) : un seul témoin,
+  essentiel (`rc_uid`), aucun pistage ; renseignements recueillis, finalités, destinataires, prestataire (Cloudflare),
+  conservation et droits.
+- Le responsable de la protection des renseignements personnels se configure dans `.env` :
+  `LEGAL_CONTACT_NAME`, `LEGAL_CONTACT_EMAIL` (affichés sur ces pages).
+- **Licence** : domaine public ([Unlicense](LICENSE)).
+

@@ -18,6 +18,23 @@ const isValidDate = (s) => {
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
 };
 
+/**
+ * Days chosen for an occasion: valid dates, deduplicated and sorted, 1 to 366.
+ * Past days are refused, except those in `keep` (already part of the occasion when editing it).
+ */
+function parseDays(list, keep = new Set()) {
+  if (!Array.isArray(list)) throw new HttpError(400, 'Choisissez au moins une journée.');
+  const days = [...new Set(list.map(String))].sort();
+  if (!days.length) throw new HttpError(400, 'Choisissez au moins une journée.');
+  if (days.length > 366) throw new HttpError(400, 'Une occasion peut compter au plus 366 journées.');
+  const { today } = clock();
+  for (const d of days) {
+    if (!isValidDate(d)) throw new HttpError(400, `Journée invalide : ${d}.`);
+    if (d < today && !keep.has(d)) throw new HttpError(400, 'Une journée déjà passée ne peut pas être ajoutée.');
+  }
+  return days;
+}
+
 /** Accepts "YYYY-MM-DDTHH:MM" (datetime-local), returns "YYYY-MM-DD HH:MM:00" or null. */
 function parseDeadline(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -50,8 +67,8 @@ async function parseOrganization(value, userId) {
 
 function withStatus(o) {
   const { today, now } = clock();
-  // Archived automatically once the end date has passed, or manually by the creator.
-  const ended = o.end_date < today;
+  // Archived automatically once its last day has passed, or manually by the creator.
+  const ended = !!o.last_day && o.last_day < today;
   const archived = ended || !!o.archived_at;
   const editClosed = !!o.edit_deadline && o.edit_deadline <= now;
   return { ...o, ended, archived, editClosed, editable: !archived && !editClosed };
@@ -63,8 +80,10 @@ function serializeOccasion(o, userId) {
     slug: o.slug,
     title: o.title,
     description: o.description || '',
-    startDate: o.start_date,
-    endDate: o.end_date,
+    firstDay: o.first_day,
+    lastDay: o.last_day,
+    dayCount: Number(o.day_count ?? o.days?.length ?? 0),
+    days: o.days, // detail only: every day open for availabilities
     dayStart: o.day_start_min ?? 0,
     dayEnd: o.day_end_min ?? 1440,
     editDeadline: o.edit_deadline ? o.edit_deadline.slice(0, 16).replace(' ', 'T') : null,
@@ -76,6 +95,8 @@ function serializeOccasion(o, userId) {
     editClosed: o.editClosed,
     editable: o.editable,
     guestCount: o.guest_count !== undefined ? Number(o.guest_count) : undefined,
+    // List only: I created it or administer its organization.
+    canManage: o.can_manage !== undefined ? !!Number(o.can_manage) : undefined,
     organization: orgBranding(o),
     allMembers: !!o.organization_id && !!o.all_members,
   };
@@ -99,7 +120,12 @@ async function loadOccasion(slug) {
     [String(slug)],
   );
   if (!rows.length) throw new HttpError(404, 'Occasion introuvable.');
-  return withStatus(rows[0]);
+  const o = rows[0];
+  const [days] = await pool.query('SELECT day FROM occasion_days WHERE occasion_id = ? ORDER BY day', [o.id]);
+  o.days = days.map((d) => d.day);
+  o.first_day = o.days[0] ?? null;
+  o.last_day = o.days.at(-1) ?? null;
+  return withStatus(o);
 }
 
 async function isParticipant(occasionId, userId) {
@@ -204,14 +230,24 @@ export function createRoutes(io) {
   r.get('/me', (req, res) => {
     // publicUrl: address phones can reach (QR codes), e.g. https://disponibilites.example.com
     const host = process.env.PUBLIC_HOSTNAME;
-    res.json({ ...serializeUser(req.user), timezone: clock().timezone, publicUrl: host ? `https://${host}` : null });
+    res.json({
+      ...serializeUser(req.user),
+      timezone: clock().timezone,
+      publicUrl: host ? `https://${host}` : null,
+      // Person in charge of personal information (Quebec law: title and contact details must be published).
+      legal: {
+        contactName: process.env.LEGAL_CONTACT_NAME || null,
+        contactEmail: process.env.LEGAL_CONTACT_EMAIL || null,
+      },
+    });
   });
 
   r.put('/me', async (req, res) => {
     const name = cleanText(req.body?.name, 100);
-    const email = cleanText(req.body?.email, 255).toLowerCase();
+    // Email is optional; when given it must look like an address.
+    const email = cleanText(req.body?.email, 255).toLowerCase() || null;
     if (!name) throw new HttpError(400, 'Le nom est requis.');
-    if (!EMAIL_RE.test(email)) throw new HttpError(400, 'Courriel invalide.');
+    if (email && !EMAIL_RE.test(email)) throw new HttpError(400, 'Courriel invalide.');
 
     await pool.query('UPDATE users SET name = ?, email = ? WHERE id = ?', [name, email, req.user.id]);
     const user = { id: req.user.id, name, email };
@@ -231,13 +267,21 @@ export function createRoutes(io) {
   r.get('/occasions', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT o.*, ${ORG_BRANDING_COLUMNS},
+         (SELECT MIN(d.day) FROM occasion_days d WHERE d.occasion_id = o.id) AS first_day,
+         (SELECT MAX(d.day) FROM occasion_days d WHERE d.occasion_id = o.id) AS last_day,
+         (SELECT COUNT(*) FROM occasion_days d WHERE d.occasion_id = o.id) AS day_count,
          (SELECT COUNT(*) FROM participants p2 JOIN users u ON u.id = p2.user_id
-           WHERE p2.occasion_id = o.id AND p2.removed_at IS NULL AND u.name IS NOT NULL) AS guest_count
+           WHERE p2.occasion_id = o.id AND p2.removed_at IS NULL AND u.name IS NOT NULL) AS guest_count,
+         -- Managed by me: I created it, or I own / administer its organization.
+         (o.creator_id = ? OR g.owner_id = ? OR EXISTS (
+            SELECT 1 FROM organization_members m
+            WHERE m.organization_id = o.organization_id AND m.user_id = ? AND m.is_admin = 1 AND m.removed_at IS NULL
+         )) AS can_manage
        FROM occasions o
        JOIN participants p ON p.occasion_id = o.id AND p.user_id = ? AND p.removed_at IS NULL
        LEFT JOIN organizations g ON g.id = o.organization_id
-       ORDER BY o.start_date, o.id`,
-      [req.user.id],
+       ORDER BY first_day, o.id`,
+      [req.user.id, req.user.id, req.user.id, req.user.id],
     );
     res.json(rows.map((o) => serializeOccasion(withStatus(o), req.user.id)));
   });
@@ -246,28 +290,25 @@ export function createRoutes(io) {
     if (!req.user.name) throw new HttpError(400, 'Indiquez votre nom et courriel avant de créer une occasion.');
     const title = cleanText(req.body?.title, 200);
     const description = cleanText(req.body?.description, 5000);
-    const { startDate, endDate } = req.body || {};
+    const days = parseDays(req.body?.days);
     const editDeadline = parseDeadline(req.body?.editDeadline);
     const organizationId = (await parseOrganization(req.body?.organizationId, req.user.id)) ?? null;
     const allMembers = !!organizationId && !!req.body?.allMembers;
     const { dayStart, dayEnd } = parseDayHours(req.body, { dayStart: 8 * 60, dayEnd: 22 * 60 });
 
     if (!title) throw new HttpError(400, 'Le titre est requis.');
-    if (!isValidDate(startDate) || !isValidDate(endDate)) throw new HttpError(400, 'Dates invalides.');
-    if (endDate < startDate) throw new HttpError(400, 'La date de fin doit suivre la date de début.');
-    if (endDate < clock().today) throw new HttpError(400, 'La date de fin est déjà passée.');
 
     const slug = crypto.randomBytes(9).toString('base64url');
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
       const [result] = await conn.query(
-        `INSERT INTO occasions (slug, title, description, start_date, end_date, day_start_min, day_end_min,
+        `INSERT INTO occasions (slug, title, description, day_start_min, day_end_min,
            edit_deadline, creator_id, organization_id, all_members)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [slug, title, description || null, startDate, endDate, dayStart, dayEnd,
-          editDeadline, req.user.id, organizationId, allMembers ? 1 : 0],
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [slug, title, description || null, dayStart, dayEnd, editDeadline, req.user.id, organizationId, allMembers ? 1 : 0],
       );
+      await conn.query('INSERT INTO occasion_days (occasion_id, day) VALUES ?', [days.map((d) => [result.insertId, d])]);
       await conn.query('INSERT INTO participants (occasion_id, user_id) VALUES (?, ?)', [result.insertId, req.user.id]);
       await conn.commit();
     } catch (err) {
@@ -315,7 +356,7 @@ export function createRoutes(io) {
     });
   });
 
-  /** Creator-only settings: title, description, edit deadline, organization. */
+  /** Creator-only settings: title, description, days, hours, edit deadline, organization. */
   r.patch('/occasions/:slug', async (req, res) => {
     const o = await loadOccasion(req.params.slug);
     if (o.creator_id !== req.user.id) throw new HttpError(403, "Seul le créateur peut modifier l'occasion.");
@@ -332,12 +373,33 @@ export function createRoutes(io) {
 
     const allMembers = !!organizationId && (req.body?.allMembers !== undefined ? !!req.body.allMembers : !!o.all_members);
     const { dayStart, dayEnd } = parseDayHours(req.body, { dayStart: o.day_start_min, dayEnd: o.day_end_min });
+    // Days: past days already chosen may stay; removing a day also removes its availabilities.
+    const days = req.body?.days !== undefined ? parseDays(req.body.days, new Set(o.days)) : o.days;
+    const removed = o.days.filter((d) => !days.includes(d));
+    const added = days.filter((d) => !o.days.includes(d));
 
-    await pool.query(
-      `UPDATE occasions SET title = ?, description = ?, edit_deadline = ?, organization_id = ?, all_members = ?,
-         day_start_min = ?, day_end_min = ? WHERE id = ?`,
-      [title, description || null, editDeadline, organizationId, allMembers ? 1 : 0, dayStart, dayEnd, o.id],
-    );
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.query(
+        `UPDATE occasions SET title = ?, description = ?, edit_deadline = ?, organization_id = ?, all_members = ?,
+           day_start_min = ?, day_end_min = ? WHERE id = ?`,
+        [title, description || null, editDeadline, organizationId, allMembers ? 1 : 0, dayStart, dayEnd, o.id],
+      );
+      if (removed.length) {
+        await conn.query('DELETE FROM occasion_days WHERE occasion_id = ? AND day IN (?)', [o.id, removed]);
+        await conn.query('DELETE FROM availabilities WHERE occasion_id = ? AND day IN (?)', [o.id, removed]);
+      }
+      if (added.length) {
+        await conn.query('INSERT INTO occasion_days (occasion_id, day) VALUES ?', [added.map((d) => [o.id, d])]);
+      }
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
     if (allMembers) {
       for (const u of await inviteAllMembers(o.id, organizationId)) {
         if (u.name) io.to(roomOf(o.slug)).emit('participant:upsert', serializeUser(u));
@@ -440,7 +502,7 @@ export function createRoutes(io) {
 
     const { day } = req.body || {};
     if (!isValidDate(day)) throw new HttpError(400, 'Journée invalide.');
-    if (day < o.start_date || day > o.end_date) throw new HttpError(400, "Cette journée est hors de la période de l'occasion.");
+    if (!o.days.includes(day)) throw new HttpError(400, "Cette journée ne fait pas partie de l'occasion.");
     const { start, end } = parseRange(req.body, o);
 
     const slots = await saveMerged(o.id, req.user.id, day, start, end);

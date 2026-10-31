@@ -67,3 +67,11 @@ export function fmtDateTime(s) {
 }
 
 export const WEEKDAYS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+
+/** "3 nov. 2026" for a single day, otherwise "3 nov. → 8 nov. 2026 · 3 jours". */
+export function fmtOccasionDays(o) {
+  if (!o?.firstDay) return 'Aucune journée';
+  const count = o.dayCount ?? o.days?.length ?? 1;
+  if (count <= 1) return fmtMedium(o.firstDay);
+  return `${fmtShort(o.firstDay)} → ${fmtMedium(o.lastDay)} · ${count} jours`;
+}

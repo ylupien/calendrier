@@ -1,5 +1,5 @@
 <script>
-  import { parseDay, toDay, addDays, minToTime, todayStr } from '../lib/dates.js';
+  import { parseDay, minToTime, todayStr } from '../lib/dates.js';
 
   let { occasion, participants, slots, onopenday } = $props();
 
@@ -14,11 +14,8 @@
   const nameOf = $derived(new Map(participants.map((p) => [p.id, p.name])));
   const pctOf = (count) => (total ? Math.round((count / total) * 100) : 0);
 
-  const days = $derived.by(() => {
-    const list = [];
-    for (let d = parseDay(occasion.startDate); toDay(d) <= occasion.endDate; d = addDays(d, 1)) list.push(toDay(d));
-    return list;
-  });
+  // One row per day chosen for the occasion.
+  const days = $derived(occasion.days ?? []);
 
   /**
    * For each day: segments of consecutive 15-minute steps where exactly the same people are available.
@@ -148,13 +145,13 @@
           {#each shownRows as row (row.day)}
             <div class="flex items-center gap-3">
               <button
-                class="w-28 shrink-0 truncate text-right text-xs first-letter:uppercase hover:text-indigo-600 {row.day === today || linked?.startsWith(row.day + '|') ? 'font-semibold text-indigo-700' : 'text-slate-600'}"
+                class="w-28 shrink-0 truncate text-right text-xs first-letter:uppercase text-link {row.day === today || linked?.startsWith(row.day + '|') ? 'font-semibold' : ''}"
                 onclick={() => onopenday(row.day)}
                 title="Ouvrir cette journée"
               >{dayLabel(row.day)}</button>
               <div
                 class="relative h-9 flex-1 rounded-md bg-slate-50 ring-1 ring-slate-200"
-                style="background-image:repeating-linear-gradient(to right, rgb(226 232 240) 0 1px, transparent 1px calc(100% / {span / 60}))"
+                style="background-image:repeating-linear-gradient(to right, var(--color-slate-200) 0 1px, transparent 1px calc(100% / {span / 60}))"
               >
                 {#each row.segments.filter((x) => x.end > range.from && x.start < range.to) as seg (seg.start)}
                   {@const isTop = seg.count === row.max}
@@ -174,7 +171,7 @@
                   >
                     {#if isTop || isLinked}
                       <!-- Pill may overflow narrow zones so the percentage always stays readable -->
-                      <span class="pointer-events-none z-20 whitespace-nowrap rounded-full px-1.5 py-px text-[11px] font-bold shadow-sm {seg.count / total > 0.5 ? 'bg-white/95 text-indigo-800' : 'bg-indigo-900/85 text-white'}">{pctOf(seg.count)}%</span>
+                      <span class="pointer-events-none z-20 whitespace-nowrap rounded-full px-1.5 py-px text-[11px] font-bold shadow-sm {seg.count / total > 0.5 ? 'bg-surface/95 text-indigo-800' : 'bg-[#312e81]/85 text-white'}">{pctOf(seg.count)}%</span>
                     {/if}
                   </div>
                 {/each}

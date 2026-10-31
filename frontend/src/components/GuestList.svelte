@@ -3,7 +3,11 @@
   import { fmtShort, minToTime } from '../lib/dates.js';
 
   // canManage: creator or organization administrator (remove / add guests).
-  let { participants, colors, slots, presence, me, creatorId, canManage = false, onremove, onaddguests } = $props();
+  // focus: people selected to be shown in the calendar (empty = everyone); onhover greys out the others.
+  let {
+    participants, colors, slots, presence, me, creatorId, canManage = false, onremove, onaddguests,
+    focus = new Set(), onhover = () => {}, ontoggle = () => {}, onclearfocus = () => {},
+  } = $props();
 
   const online = $derived(new Set(presence.online));
   const editingBy = $derived(new Map(presence.editing.map((e) => [e.userId, e])));
@@ -29,11 +33,34 @@
   </div>
   {#if participants.length === 0}
     <p class="text-sm text-slate-500">Personne pour l'instant. Partagez le lien !</p>
+  {:else if focus.size}
+    <div class="mb-2 flex items-center justify-between rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs text-indigo-700">
+      <span>👁 {focus.size} personne{focus.size > 1 ? 's' : ''} affichée{focus.size > 1 ? 's' : ''} dans le calendrier</span>
+      <button class="text-link font-medium" onclick={onclearfocus}>Tout afficher</button>
+    </div>
+  {:else}
+    <p class="mb-2 text-xs text-slate-400">Survolez un nom pour le repérer, cliquez pour n'afficher que certaines personnes.</p>
   {/if}
   <ul class="space-y-1">
     {#each participants as p (p.id)}
       {@const ed = editingBy.get(p.id)}
-      <li class="group flex items-center gap-3 rounded-lg px-2 py-2 {p.id === me?.id ? 'bg-indigo-50/60' : ''}">
+      {@const selected = focus.has(p.id)}
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <li
+        class="group relative flex items-center gap-1 rounded-lg transition
+          {selected ? 'bg-indigo-50 ring-1 ring-indigo-300' : p.id === me?.id ? 'bg-indigo-50/60' : ''}
+          {focus.size && !selected ? 'opacity-50' : ''}"
+        onmouseenter={() => onhover(p.id)}
+        onmouseleave={() => onhover(null)}
+      >
+        <button
+          class="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-slate-100/70"
+          aria-pressed={selected}
+          title={selected ? 'Retirer de la sélection' : 'Afficher seulement les personnes sélectionnées'}
+          onclick={() => ontoggle(p.id)}
+          onfocus={() => onhover(p.id)}
+          onblur={() => onhover(null)}
+        >
         <div class="relative shrink-0">
           <span class="flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white" style="background:{colors.get(p.id)}">
             {initials(p.name)}
@@ -48,7 +75,7 @@
             {#if p.id === me?.id}<span class="text-xs text-slate-400">(vous)</span>{/if}
             {#if p.id === creatorId}<span title="Créateur">👑</span>{/if}
           </div>
-          <div class="truncate text-xs text-slate-500">{p.email}</div>
+          {#if p.email}<div class="truncate text-xs text-slate-500">{p.email}</div>{/if}
           {#if ed}
             <div class="mt-0.5 animate-pulse text-xs font-medium" style="color:{colors.get(p.id)}">
               ✎ modifie le {fmtShort(ed.day)} ({minToTime(ed.start)}–{minToTime(ed.end)})
@@ -57,9 +84,11 @@
             <div class="text-xs text-slate-400">{daysBy.get(p.id)?.size ?? 0} jour(s) disponible(s)</div>
           {/if}
         </div>
+        {#if selected}<span class="shrink-0 text-base" title="Affiché dans le calendrier">👁</span>{/if}
+        </button>
         {#if canManage && p.id !== creatorId}
           <button
-            class="shrink-0 rounded-md px-1.5 py-0.5 text-xs text-slate-400 opacity-0 transition hover:bg-rose-50 hover:text-rose-600 focus:opacity-100 group-hover:opacity-100"
+            class="absolute right-1 top-1 rounded-md bg-surface px-1.5 py-0.5 text-xs text-slate-400 opacity-0 shadow-sm transition hover:bg-rose-50 hover:text-rose-600 focus:opacity-100 group-hover:opacity-100"
             title="Retirer de l'occasion"
             onclick={() => onremove(p)}
           >Retirer</button>

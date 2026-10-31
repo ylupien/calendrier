@@ -1,7 +1,8 @@
 <script>
-  import { onMount, tick } from 'svelte';
+  import { onMount } from 'svelte';
   import { fmtLong, minToTime } from '../lib/dates.js';
   import Modal from './Modal.svelte';
+  import Chevron from './Chevron.svelte';
 
   let {
     day, slots, drafts, participants, colors, me, editable, dayStart = 0, dayEnd = 1440,
@@ -26,15 +27,12 @@
     return Array.from({ length: Math.floor((dayEnd - dayStart) / step) + 1 }, (_, i) => dayStart + i * step);
   });
   const presets = $derived(PRESETS.filter((p) => p.start >= dayStart && p.end <= dayEnd));
-  // How far the pointer may leave the row before a dragged range is deleted on release.
+  // How far the pointer may leave the rows before a dragged range is deleted on release.
   const OUT_Y = 28;
   const OUT_X = 16;
-  // Phone layout: vertical timeline, 48 px per hour (15 min = 12 px, comfortable for a finger).
-  const HOUR_V = 48;
-  const OUT_SIDE = 36; // phone: drag a range sideways out of its column to delete it
+  const NOON = 12 * 60;
 
   let mobile = $state(false);
-  let vscroll = $state(null); // scrollable vertical timeline
   onMount(() => {
     const mq = window.matchMedia('(max-width: 639px)');
     const set = () => (mobile = mq.matches);
@@ -43,15 +41,18 @@
     return () => mq.removeEventListener('change', set);
   });
 
-  // Phone: show my first range (or 8:00) when the day opens.
-  $effect(() => {
-    day;
-    if (!mobile || !vscroll) return;
-    const first = mySlots[0]?.start ?? 8 * 60;
-    tick().then(() => vscroll && (vscroll.scrollTop = Math.max(0, ((first - 30 - from) / 60) * HOUR_V)));
+  /**
+   * Interactive rows of my ranges. Computer: one row for the whole day.
+   * Phone: two full-width rows, before noon and after noon, so the whole day fits on screen.
+   */
+  const rows = $derived.by(() => {
+    if (!mobile || from >= NOON || to <= NOON) return [{ key: 'day', label: '', from, to }];
+    return [
+      { key: 'am', label: 'Avant-midi', from, to: NOON },
+      { key: 'pm', label: 'Après-midi', from: NOON, to },
+    ];
   });
-
-  let track = $state(null); // the "Vous" row element
+  let tracks = $state([]); // one element per row
   let selectedId = $state(null); // range in edit mode
   // drag: { kind: 'create'|'slot', mode: 'create'|'move'|'start'|'end', id?, px, py, raw0, anchor?,
   //         origStart, origEnd, lo, hi, start, end, moved, outside }
@@ -68,6 +69,15 @@
   const pct = (m) => `${((clip(m) - from) / span) * 100}%`;
   /** Horizontal position + width of a range (clipped to the occasion's hours). */
   const hbox = (a, b) => `left:${pct(a)};width:${((clip(b) - clip(a)) / span) * 100}%`;
+  // Same within one row (phone: before / after noon).
+  const rclip = (row, m) => Math.min(row.to, Math.max(row.from, m));
+  const rpct = (row, m) => `${((rclip(row, m) - row.from) / (row.to - row.from)) * 100}%`;
+  const rbox = (row, a, b) => `left:${rpct(row, a)};width:${((rclip(row, b) - rclip(row, a)) / (row.to - row.from)) * 100}%`;
+  const inRow = (row, x) => x.end > row.from && x.start < row.to;
+  const rowTicks = (row) => {
+    const step = row.to - row.from > 12 * 60 ? 120 : 60;
+    return Array.from({ length: Math.floor((row.to - row.from) / step) + 1 }, (_, i) => row.from + i * step);
+  };
   // Ranges are drawn with their owner's color at 75% opacity.
   const fill = (c) => `${c}BF`;
   // Short label for narrow ranges: "9h–10h30" instead of "09:00–10:30".
@@ -143,19 +153,34 @@
   // Pixels the pointer must travel before a press becomes a drag (a click never moves anything).
   const DRAG_THRESHOLD = 4;
 
-  /** Unsnapped minutes under the pointer (horizontal row on a computer, vertical column on a phone). */
+  /** Unsnapped minutes under the pointer, in the row closest to it (a range can be dragged from one row to the other). */
   function rawMinutesAt(e) {
-    const rect = track.getBoundingClientRect();
-    const ratio = mobile ? (e.clientY - rect.top) / rect.height : (e.clientX - rect.left) / rect.width;
-    return from + ratio * span;
+    let best = 0;
+    let bestDist = Infinity;
+    tracks.forEach((el, i) => {
+      if (!el) return;
+      const rc = el.getBoundingClientRect();
+      const dist = Math.abs(e.clientY - (rc.top + rc.bottom) / 2);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = i;
+      }
+    });
+    const row = rows[best];
+    const rc = tracks[best].getBoundingClientRect();
+    return row.from + ((e.clientX - rc.left) / rc.width) * (row.to - row.from);
   }
 
   const minutesAt = (e) => clamp(snap(rawMinutesAt(e)), from, to);
 
+  /** Released far from the rows: the dragged range is deleted. */
   function isOutside(e) {
-    const r = track.getBoundingClientRect();
-    if (mobile) return e.clientX < r.left - OUT_SIDE || e.clientX > r.right + OUT_SIDE;
-    return e.clientY < r.top - OUT_Y || e.clientY > r.bottom + OUT_Y || e.clientX < r.left - OUT_X || e.clientX > r.right + OUT_X;
+    const rects = tracks.filter(Boolean).map((el) => el.getBoundingClientRect());
+    const top = Math.min(...rects.map((x) => x.top));
+    const bottom = Math.max(...rects.map((x) => x.bottom));
+    const left = Math.min(...rects.map((x) => x.left));
+    const right = Math.max(...rects.map((x) => x.right));
+    return e.clientY < top - OUT_Y || e.clientY > bottom + OUT_Y || e.clientX < left - OUT_X || e.clientX > right + OUT_X;
   }
 
   function stopListening() {
@@ -166,13 +191,12 @@
 
   function beginDrag(e, info) {
     if (!editable || e.button !== 0) return;
-    // On a phone, a tap on an empty area must still let the finger scroll the timeline.
-    if (!(mobile && info.kind === 'create')) e.preventDefault();
+    e.preventDefault();
     e.stopPropagation();
     drag = { ...info, px: e.clientX, py: e.clientY, raw0: rawMinutesAt(e), moved: false, outside: false };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp, { once: true });
-    // The browser cancels the gesture when it turns into a scroll: then nothing happens.
+    // Gesture interrupted by the browser: nothing happens.
     window.addEventListener('pointercancel', onCancel, { once: true });
   }
 
@@ -190,12 +214,6 @@
     beginDrag(e, { kind: 'create', mode: 'create', anchor: a, lo, hi, origStart: a, origEnd: a, start: a, end: a });
   }
 
-  /** Phone: tapping a range only selects it (handles appear); the finger can still scroll over it. */
-  function onSlotTap(e, s) {
-    e.stopPropagation();
-    selectedId = s.id;
-  }
-
   function onSlotDown(e, s, mode) {
     selectedId = s.id;
     const { lo, hi } = bounds(s.start, s.id);
@@ -205,8 +223,6 @@
   function onMove(e) {
     if (!drag) return;
     const d = drag;
-    // Phone: an empty area is only tapped (a moving finger scrolls), creation happens on release.
-    if (mobile && d.mode === 'create') return;
     const moved = d.moved || Math.hypot(e.clientX - d.px, e.clientY - d.py) >= DRAG_THRESHOLD;
     if (!moved) return;
     // The range follows the pointer from the exact point where it was grabbed; only the result is snapped.
@@ -288,6 +304,25 @@
   }
   const spot = $derived(freeSpot());
 
+  // Phone: "New range" opens a small form (start, end, quick choices) instead of creating right away.
+  let newRange = $state(null); // { start, end } while the form is open
+  const newRangeOk = $derived(!!newRange && fits(newRange.start, newRange.end));
+
+  function openNewRange() {
+    if (!mobile) {
+      if (spot) create(spot.start, spot.end);
+      return;
+    }
+    newRange = spot ? { ...spot } : { start: from, end: Math.min(from + 60, to) };
+  }
+
+  async function addNewRange() {
+    if (!newRangeOk) return;
+    const { start, end } = newRange;
+    newRange = null;
+    await create(start, end);
+  }
+
   function onkeydown(e) {
     if (!selected || !['Delete', 'Backspace'].includes(e.key)) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
@@ -309,13 +344,6 @@
       .filter((p) => byUser.has(p.id) || ghosts.has(p.id))
       .map((p) => ({ user: p, slots: byUser.get(p.id) ?? [], ghost: ghosts.get(p.id) ?? null }));
   });
-
-  // Phone: my column + one narrow column per other guest (with ranges or drawing one).
-  /** Vertical position + height of a range (clipped to the occasion's hours). */
-  const vbox = (a, b) => `top:${((clip(a) - from) / 60) * HOUR_V}px;height:${((clip(b) - clip(a)) / 60) * HOUR_V}px`;
-  const vHours = $derived(Array.from({ length: Math.ceil(span / 60) }, (_, i) => from + i * 60));
-  const initialsOf = (name = '') =>
-    name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?';
 
   const listRows = $derived.by(() => {
     const byUser = new Map();
@@ -356,9 +384,10 @@
 {/snippet}
 
 {#snippet timeline()}
-  <div class="select-none space-y-2" style="--hours:{span / 60}">
-    <div class="flex items-end gap-3">
-      <div class="w-24 shrink-0"></div>
+  <div class="select-none {mobile ? 'space-y-1' : 'space-y-2'}" style="--hours:{span / 60}">
+    <!-- Scale for the whole day (on a phone with two rows, each row has its own) -->
+    <div class="flex items-end gap-3 {mobile && rows.length > 1 ? 'hidden' : ''} {mobile ? 'mx-2' : ''}">
+      {#if !mobile}<div class="w-24 shrink-0"></div>{/if}
       <div class="relative h-4 flex-1 text-[10px] text-slate-400">
         {#each TICKS as h (h)}
           <span class="absolute -translate-x-1/2" style="left:{pct(h)}">{short(h)}</span>
@@ -367,159 +396,94 @@
     </div>
 
     {#if editable}
-      <div class="flex items-center gap-3">
-        <span class="w-24 shrink-0 text-right text-xs font-semibold text-indigo-700">Vous</span>
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          bind:this={track}
-          class="hour-grid relative h-12 flex-1 touch-none rounded-lg bg-slate-100 ring-1 ring-slate-200 {drag ? 'cursor-grabbing' : 'cursor-crosshair'}"
-          onpointerdown={onTrackDown}
-        >
-          {#each mySlots.filter(inView) as s (s.id)}
-            {@const v = shown(s)}
-            {@const isSel = s.id === selectedId}
-            {@const dragging = drag?.kind === 'slot' && drag.id === s.id}
-            {@const out = dragging && drag.outside}
-            <div
-              class="absolute inset-y-1 flex items-center justify-center overflow-hidden rounded-md text-[11px] font-medium text-white shadow-sm transition-[opacity,box-shadow]
-                {dragging ? 'cursor-grabbing' : 'cursor-grab'}
-                {isSel ? 'z-10 ring-2 ring-slate-900/70 ring-offset-1' : ''}
-                {out ? 'opacity-40' : ''}"
-              style="{hbox(v.start, v.end)};background:{out ? '#e11d48' : fill(color)}"
-              title="Cliquez pour modifier · glissez pour déplacer · étirez les bords · glissez hors de la ligne pour supprimer"
-              onpointerdown={(e) => onSlotDown(e, s, 'move')}
-            >
-              <span class="pointer-events-none truncate px-1.5 {v.end - v.start < 150 ? 'text-[10px] tracking-tight' : ''}">{out ? 'Supprimer' : label(v)}</span>
-              <span class="absolute inset-y-0 left-0 w-2.5 cursor-ew-resize hover:bg-black/20" onpointerdown={(e) => onSlotDown(e, s, 'start')}>
-                {#if isSel}<span class="absolute left-0.5 top-1/2 h-5 w-1 -translate-y-1/2 rounded bg-white/90"></span>{/if}
-              </span>
-              <span class="absolute inset-y-0 right-0 w-2.5 cursor-ew-resize hover:bg-black/20" onpointerdown={(e) => onSlotDown(e, s, 'end')}>
-                {#if isSel}<span class="absolute right-0.5 top-1/2 h-5 w-1 -translate-y-1/2 rounded bg-white/90"></span>{/if}
-              </span>
-            </div>
-          {/each}
+      {#each rows as row, ri (row.key)}
+        {#if mobile && rows.length > 1}
+          <!-- Phone: name and hour scale of this row (before / after noon) -->
+          <div class="flex items-end justify-between pt-1">
+            <span class="text-[11px] font-semibold text-indigo-700">{row.label}</span>
+          </div>
+          <div class="relative mx-2 h-3.5 text-[10px] text-slate-400">
+            {#each rowTicks(row) as h (h)}
+              <span class="absolute -translate-x-1/2" style="left:{rpct(row, h)}">{short(h)}</span>
+            {/each}
+          </div>
+        {/if}
+        <div class="flex items-center gap-3">
+          {#if !mobile}<span class="w-24 shrink-0 text-right text-xs font-semibold text-indigo-700">Vous</span>{/if}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            bind:this={tracks[ri]}
+            class="hour-grid relative flex-1 touch-none rounded-lg bg-slate-100 ring-1 ring-slate-200 {mobile ? 'mx-2 h-14' : 'h-12'} {drag ? 'cursor-grabbing' : 'cursor-crosshair'}"
+            style="--hours:{(row.to - row.from) / 60}"
+            onpointerdown={onTrackDown}
+          >
+            {#each mySlots.filter((x) => inRow(row, shown(x))) as s (s.id)}
+              {@const v = shown(s)}
+              {@const isSel = s.id === selectedId}
+              {@const dragging = drag?.kind === 'slot' && drag.id === s.id}
+              {@const out = dragging && drag.outside}
+              {@const hasStart = v.start >= row.from && v.start < row.to}
+              {@const hasEnd = v.end > row.from && v.end <= row.to}
+              <div
+                class="absolute inset-y-1 flex items-center justify-center rounded-md text-[11px] font-medium text-white shadow-sm transition-[opacity,box-shadow]
+                  {dragging ? 'cursor-grabbing' : 'cursor-grab'}
+                  {isSel ? 'z-10 ring-2 ring-slate-900/70 ring-offset-1' : ''}
+                  {out ? 'opacity-40' : ''}
+                  {hasStart ? '' : 'rounded-l-none'} {hasEnd ? '' : 'rounded-r-none'}"
+                style="{rbox(row, v.start, v.end)};background:{out ? '#e11d48' : fill(color)}"
+                title="Cliquez pour modifier · glissez pour déplacer · étirez les bords · glissez hors de la ligne pour supprimer"
+                onpointerdown={(e) => onSlotDown(e, s, 'move')}
+              >
+                <span class="pointer-events-none truncate px-2 {v.end - v.start < 150 ? 'text-[10px] tracking-tight' : ''}">{out ? 'Supprimer' : label(v)}</span>
+                {#if hasStart}
+                  <!-- Start handle (wider hit area on a phone) -->
+                  <span class="absolute inset-y-0 cursor-ew-resize hover:bg-black/20 {mobile ? '-left-3 w-7' : 'left-0 w-2.5'}" onpointerdown={(e) => onSlotDown(e, s, 'start')}>
+                    {#if isSel}
+                      <span class="absolute top-1/2 -translate-y-1/2 rounded-full {mobile ? 'left-2 h-7 w-3 border-2 border-white bg-slate-900/80 shadow' : 'left-0.5 h-5 w-1 bg-white/90'}"></span>
+                    {/if}
+                  </span>
+                {/if}
+                {#if hasEnd}
+                  <span class="absolute inset-y-0 cursor-ew-resize hover:bg-black/20 {mobile ? '-right-3 w-7' : 'right-0 w-2.5'}" onpointerdown={(e) => onSlotDown(e, s, 'end')}>
+                    {#if isSel}
+                      <span class="absolute top-1/2 -translate-y-1/2 rounded-full {mobile ? 'right-2 h-7 w-3 border-2 border-white bg-slate-900/80 shadow' : 'right-0.5 h-5 w-1 bg-white/90'}"></span>
+                    {/if}
+                  </span>
+                {/if}
+              </div>
+            {/each}
 
-          <!-- Range being drawn, or waiting for the server -->
-          {#if (drag?.kind === 'create' && drag.end > drag.start) || (pending && !pending.id)}
-            {@const r = drag?.kind === 'create' ? drag : pending}
-            {@const out = drag?.kind === 'create' && drag.outside}
-            <div
-              class="pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded-md text-[11px] font-medium text-white shadow-sm {out ? 'opacity-40' : ''}"
-              style="{hbox(r.start, r.end)};background:{out ? '#e11d48' : fill(color)}"
-            >
-              <span class="truncate px-1.5 {r.end - r.start < 150 ? 'text-[10px] tracking-tight' : ''}">{out ? 'Annuler' : label(r)}</span>
-            </div>
-          {/if}
+            <!-- Range being drawn, or waiting for the server -->
+            {#if (drag?.kind === 'create' && drag.end > drag.start) || (pending && !pending.id)}
+              {@const p = drag?.kind === 'create' ? drag : pending}
+              {@const out = drag?.kind === 'create' && drag.outside}
+              {#if inRow(row, p)}
+                <div
+                  class="pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded-md text-[11px] font-medium text-white shadow-sm {out ? 'opacity-40' : ''}"
+                  style="{rbox(row, p.start, p.end)};background:{out ? '#e11d48' : fill(color)}"
+                >
+                  <span class="truncate px-1.5 {p.end - p.start < 150 ? 'text-[10px] tracking-tight' : ''}">{out ? 'Annuler' : label(p)}</span>
+                </div>
+              {/if}
+            {/if}
+          </div>
         </div>
-      </div>
+      {/each}
     {/if}
 
-    {#each others as row (row.user.id)}
+    {#each mobile ? [] : others as row (row.user.id)}
       {@render readonlyRow(row.user.id === me?.id ? 'Vous' : row.user.name, row.slots, colors.get(row.user.id), row.ghost)}
     {/each}
   </div>
 {/snippet}
 
-{#snippet timelineVertical()}
-  <div bind:this={vscroll} class="relative h-[52vh] select-none overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white">
-    <!-- Column headers -->
-    <div class="sticky top-0 z-30 flex border-b border-slate-200 bg-white/95 text-[11px] font-semibold backdrop-blur">
-      <div class="w-10 shrink-0"></div>
-      {#if editable}<div class="flex-[3] py-1.5 text-center text-indigo-700">Vous</div>{/if}
-      {#each others as row (row.user.id)}
-        <div class="min-w-9 flex-1 truncate border-l border-slate-100 py-1.5 text-center" style="color:{colors.get(row.user.id)}" title={row.user.name}>
-          {row.user.id === me?.id ? 'Vous' : initialsOf(row.user.name)}
-        </div>
-      {/each}
-    </div>
-
-    <div class="relative flex" style="height:{(span / 60) * HOUR_V}px;--vofs:{-((from % 60) / 60) * HOUR_V}px">
-      <!-- Hours -->
-      <div class="w-10 shrink-0">
-        {#each vHours as h (h)}
-          <div class="relative text-right text-[10px] text-slate-400" style="height:{HOUR_V}px">
-            {#if h > from}<span class="absolute -top-1.5 right-1.5">{short(h)}</span>{/if}
-          </div>
-        {/each}
-      </div>
-
-      {#if editable}
-        <!-- My column: tap an empty hour to create, tap a range to select, use its handles -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          bind:this={track}
-          class="hour-grid-v relative flex-[3] border-l border-slate-200 bg-indigo-50/30"
-          style="touch-action: pan-y"
-          onpointerdown={onTrackDown}
-        >
-          {#each mySlots.filter(inView) as s (s.id)}
-            {@const v = shown(s)}
-            {@const isSel = s.id === selectedId}
-            {@const dragging = drag?.kind === 'slot' && drag.id === s.id}
-            {@const out = dragging && drag.outside}
-            <div
-              class="absolute inset-x-1.5 rounded-lg text-white shadow-sm transition-[opacity,box-shadow] {isSel ? 'z-20 ring-2 ring-slate-900/70 ring-offset-1' : 'z-10'} {out ? 'opacity-40' : ''}"
-              style="{vbox(v.start, v.end)};background:{out ? '#e11d48' : fill(color)};touch-action:pan-y"
-              onpointerdown={(e) => onSlotTap(e, s)}
-            >
-              <div class="pointer-events-none overflow-hidden px-2 pt-1 text-xs font-semibold leading-tight">
-                {out ? 'Relâcher pour supprimer' : `${minToTime(v.start)} – ${minToTime(v.end)}`}
-              </div>
-              {#if isSel}
-                <!-- Big touch handles: top = start, bottom = end, center = move -->
-                <button
-                  class="absolute -top-3 left-1/2 flex h-6 w-14 -translate-x-1/2 items-center justify-center"
-                  style="touch-action:none" aria-label="Changer l'heure de début"
-                  onpointerdown={(e) => onSlotDown(e, s, 'start')}
-                ><span class="h-2 w-10 rounded-full border-2 border-white bg-slate-900/80 shadow"></span></button>
-                <button
-                  class="absolute -bottom-3 left-1/2 flex h-6 w-14 -translate-x-1/2 items-center justify-center"
-                  style="touch-action:none" aria-label="Changer l'heure de fin"
-                  onpointerdown={(e) => onSlotDown(e, s, 'end')}
-                ><span class="h-2 w-10 rounded-full border-2 border-white bg-slate-900/80 shadow"></span></button>
-                {#if v.end - v.start >= 45}
-                  <button
-                    class="absolute bottom-1.5 right-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-sm text-slate-700 shadow"
-                    style="touch-action:none" aria-label="Déplacer la plage"
-                    onpointerdown={(e) => onSlotDown(e, s, 'move')}
-                  >✥</button>
-                {/if}
-              {/if}
-            </div>
-          {/each}
-          {#if pending && !pending.id}
-            <div class="pointer-events-none absolute inset-x-1.5 rounded-lg opacity-70" style="{vbox(pending.start, pending.end)};background:{fill(color)}"></div>
-          {/if}
-        </div>
-      {/if}
-
-      {#each others as row (row.user.id)}
-        {@const c = colors.get(row.user.id)}
-        <div class="hour-grid-v relative min-w-9 flex-1 border-l border-slate-100">
-          {#each row.slots.filter(inView) as s (s.id)}
-            <div
-              class="absolute inset-x-0.5 overflow-hidden rounded-md text-white {s.live ? 'ring-2 ring-slate-900/50' : ''} {s.deleting ? 'opacity-30' : ''}"
-              style="{vbox(s.start, s.end)};background:{s.deleting ? '#e11d48' : fill(c)}"
-              title="{row.user.name} · {minToTime(s.start)} – {minToTime(s.end)}"
-            >
-              {#if s.end - s.start >= 45}<div class="px-0.5 pt-0.5 text-center text-[9px] font-medium leading-tight">{short(s.start)}<br />{short(s.end)}</div>{/if}
-            </div>
-          {/each}
-          {#if row.ghost}
-            <div class="absolute inset-x-0.5 animate-pulse rounded-md border-2 border-dashed" style="{vbox(row.ghost.start, row.ghost.end)};border-color:{c};background:{c}33"></div>
-          {/if}
-        </div>
-      {/each}
-    </div>
-  </div>
-{/snippet}
 
 <Modal {onclose} size="max-w-4xl">
   <div class="flex items-center justify-between gap-2 border-b border-slate-200 px-5 py-4">
-    <button class="btn-ghost px-2" disabled={!prevDay} onclick={() => onchangeday(prevDay)} aria-label="Jour précédent">‹</button>
+    <button class="btn-icon" disabled={!prevDay} onclick={() => onchangeday(prevDay)} aria-label="Jour précédent" title="Journée précédente"><Chevron dir="left" /></button>
     <h2 class="text-center text-base font-semibold text-slate-900 first-letter:uppercase">{fmtLong(day)}</h2>
-    <div class="flex items-center">
-      <button class="btn-ghost px-2" disabled={!nextDay} onclick={() => onchangeday(nextDay)} aria-label="Jour suivant">›</button>
+    <div class="flex items-center gap-1">
+      <button class="btn-icon" disabled={!nextDay} onclick={() => onchangeday(nextDay)} aria-label="Jour suivant" title="Journée suivante"><Chevron dir="right" /></button>
       <button class="btn-ghost px-2 text-lg leading-none" onclick={onclose} aria-label="Fermer">×</button>
     </div>
   </div>
@@ -527,15 +491,20 @@
   <div class="space-y-5 p-4 sm:space-y-6 sm:p-6">
     {#if editable}
       <div class="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 sm:p-5">
+        {#if mobile}
+          <!-- Phone: as few controls as possible so the whole day stays visible.
+               Fixed layout: selecting a range must not move the rows under the finger. -->
+          <div class="grid grid-cols-2 gap-2">
+            <button class="btn-primary whitespace-nowrap px-2 py-2" onclick={openNewRange}>＋ Nouvelle plage</button>
+            <button class="btn border border-rose-200 bg-surface py-2 text-rose-600 disabled:border-slate-200 disabled:text-slate-400"
+              disabled={!selected} onclick={() => remove(selected)}>Supprimer</button>
+          </div>
+          <p class="mt-1.5 text-center text-xs text-slate-500">Touchez ou glissez pour créer · touchez une plage puis tirez ses bords.</p>
+        {:else}
         <h3 class="text-sm font-semibold text-slate-800">Mes disponibilités</h3>
         <p class="mt-0.5 text-xs text-slate-500">
-          {#if mobile}
-            Touchez une heure libre pour créer une plage. Touchez une plage pour la modifier : tirez ses poignées,
-            ou utilisez ✥ pour la déplacer.
-          {:else}
-            Vous pouvez avoir plusieurs plages par jour. Cliquez ou glissez sur une zone libre de votre ligne pour en créer une.
-            Cliquez une plage pour la modifier, étirez ses bords pour la redimensionner, glissez-la hors de la ligne pour la supprimer.
-          {/if}
+          Vous pouvez avoir plusieurs plages par jour. Cliquez ou glissez sur une zone libre de votre ligne pour en créer une.
+          Cliquez une plage pour la modifier, étirez ses bords pour la redimensionner, glissez-la hors de la ligne pour la supprimer.
         </p>
 
         <div class="mt-3 grid grid-cols-2 items-end gap-3 sm:mt-4 sm:flex sm:flex-wrap sm:gap-4">
@@ -566,7 +535,7 @@
             </select>
           </div>
           {#if selected}
-            <button class="btn border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 sm:border-0 sm:bg-transparent" onclick={() => remove(selected)}>Supprimer<span class="hidden sm:inline">&nbsp;la plage</span></button>
+            <button class="btn border border-rose-200 bg-surface text-rose-600 hover:bg-rose-50 sm:border-0 sm:bg-transparent" onclick={() => remove(selected)}>Supprimer<span class="hidden sm:inline">&nbsp;la plage</span></button>
           {:else}
             <p class="hidden pb-2 text-xs text-slate-500 sm:block">Sélectionnez une plage pour modifier ses heures.</p>
           {/if}
@@ -574,7 +543,7 @@
             class="btn-outline {selected ? '' : 'col-span-2'} sm:ml-auto"
             disabled={!spot}
             title={spot ? `Créer ${minToTime(spot.start)}–${minToTime(spot.end)}` : 'Plus de place libre dans cette journée'}
-            onclick={() => create(spot.start, spot.end)}
+            onclick={openNewRange}
           >＋ Nouvelle plage</button>
         </div>
 
@@ -583,7 +552,7 @@
           {#each presets as p (p.label)}
             {@const ok = fits(p.start, p.end)}
             <button
-              class="shrink-0 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-600 transition enabled:hover:border-indigo-400 disabled:opacity-40 sm:py-0.5"
+              class="shrink-0 rounded-full border border-slate-300 bg-surface px-2.5 py-1 text-xs text-slate-600 transition enabled:hover:border-indigo-400 disabled:opacity-40 sm:py-0.5"
               disabled={!ok}
               title={ok ? 'Ajouter cette plage' : 'Chevauche une de vos plages'}
               onclick={() => create(p.start, p.end)}
@@ -591,11 +560,11 @@
           {/each}
         </div>
 
-        <div class="mt-4 sm:mt-5">{#if mobile}{@render timelineVertical()}{:else}{@render timeline()}{/if}</div>
+        {/if}
+
+        <div class="mt-3 sm:mt-5">{@render timeline()}</div>
       </div>
-    {:else if mobile}
-      {@render timelineVertical()}
-    {:else}
+    {:else if !mobile}
       {@render timeline()}
     {/if}
 
@@ -631,16 +600,47 @@
   </div>
 </Modal>
 
+{#if newRange}
+  <Modal onclose={() => (newRange = null)} size="max-w-sm">
+    <div class="space-y-4 p-5">
+      <h3 class="text-base font-semibold text-slate-900">Nouvelle plage</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="label text-xs" for="nr-start">Heure de début</label>
+          <select id="nr-start" class="input" bind:value={newRange.start}
+            onchange={() => newRange.end <= newRange.start && (newRange.end = Math.min(newRange.start + 60, to))}>
+            {#each OPTIONS.filter((m) => m < to) as m (m)}<option value={m}>{minToTime(m)}</option>{/each}
+          </select>
+        </div>
+        <div>
+          <label class="label text-xs" for="nr-end">Heure de fin</label>
+          <select id="nr-end" class="input" bind:value={newRange.end}>
+            {#each OPTIONS.filter((m) => m > newRange.start) as m (m)}<option value={m}>{minToTime(m)}</option>{/each}
+          </select>
+        </div>
+      </div>
+      {#if presets.length}
+        <div class="flex flex-wrap gap-1.5">
+          {#each presets as p (p.label)}
+            <button
+              class="rounded-full border px-2.5 py-1 text-xs transition {newRange.start === p.start && newRange.end === p.end ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-slate-300 bg-surface text-slate-600'}"
+              onclick={() => (newRange = { start: p.start, end: p.end })}
+            >{p.label} <span class="opacity-70">{minToTime(p.start)}–{minToTime(p.end)}</span></button>
+          {/each}
+        </div>
+      {/if}
+      {#if !newRangeOk}<p class="text-xs text-rose-600">Cette plage chevauche une de vos plages.</p>{/if}
+      <div class="flex justify-end gap-2">
+        <button class="btn-ghost" onclick={() => (newRange = null)}>Annuler</button>
+        <button class="btn-primary px-5" disabled={!newRangeOk} onclick={addNewRange}>Ajouter</button>
+      </div>
+    </div>
+  </Modal>
+{/if}
+
 <style>
   /* One vertical line per hour behind the timeline rows. */
   .hour-grid {
-    background-image: repeating-linear-gradient(to right, rgb(226 232 240) 0 1px, transparent 1px calc(100% / var(--hours, 24)));
-  }
-  /* Phone: one horizontal line per hour (48 px) and a lighter one at the half hour. */
-  .hour-grid-v {
-    background-image:
-      repeating-linear-gradient(to bottom, rgb(226 232 240) 0 1px, transparent 1px 48px),
-      repeating-linear-gradient(to bottom, transparent 0 24px, rgb(241 245 249) 24px 25px, transparent 25px 48px);
-    background-position: 0 var(--vofs, 0);
+    background-image: repeating-linear-gradient(to right, var(--color-slate-200) 0 1px, transparent 1px calc(100% / var(--hours, 24)));
   }
 </style>

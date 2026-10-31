@@ -38,7 +38,8 @@
         {session.me?.name ? 'Mon profil' : 'Bienvenue !'}
       </h2>
       <p class="mt-1 text-sm text-slate-500">
-        Votre nom apparaîtra dans la liste des invités visible par tous les participants.
+        Votre nom (et votre courriel, si vous l'indiquez) sera visible des autres participants de vos occasions.
+        <a href="/confidentialite" target="_blank" rel="noopener" class="text-link">En savoir plus</a>
       </p>
     </div>
     <div>
@@ -47,8 +48,8 @@
       <input id="pf-name" class="input" bind:value={name} required maxlength="100" autofocus autocomplete="name" />
     </div>
     <div>
-      <label class="label" for="pf-email">Courriel</label>
-      <input id="pf-email" type="email" class="input" bind:value={email} required maxlength="255" autocomplete="email" />
+      <label class="label" for="pf-email">Courriel <span class="font-normal text-slate-400">(facultatif)</span></label>
+      <input id="pf-email" type="email" class="input" bind:value={email} maxlength="255" autocomplete="email" />
     </div>
     {#if error}<p class="text-sm text-rose-600">{error}</p>{/if}
     <div class="flex justify-end gap-2 pt-2">

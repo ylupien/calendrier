@@ -4,7 +4,7 @@
   import { getSocket } from '../lib/socket.js';
   import { link } from '../lib/router.svelte.js';
   import { session, askProfile } from '../lib/session.svelte.js';
-  import { fmtMedium, fmtShort, fmtDateTime, pad } from '../lib/dates.js';
+  import { fmtOccasionDays, fmtDateTime, pad } from '../lib/dates.js';
   import { colorMap } from '../lib/colors.js';
   import Calendar from '../components/Calendar.svelte';
   import GuestList from '../components/GuestList.svelte';
@@ -23,6 +23,15 @@
   let notice = $state('');
   let settingsOpen = $state(false);
   let addingGuests = $state(false);
+  // Guest list → calendar: people selected to be shown (temporary, empty = everyone) and person hovered.
+  let focus = $state(new Set());
+  let hovered = $state(null);
+
+  function toggleFocus(id) {
+    const next = new Set(focus);
+    next.has(id) ? next.delete(id) : next.add(id);
+    focus = next;
+  }
   let tab = $state('calendar'); // 'calendar' | 'report'
   let calendar = $state(null);
   let nowLocal = $state(localNow());
@@ -69,7 +78,13 @@
     else participants = [...participants, user];
   }
 
+  /** Availabilities of days removed from the occasion are deleted by the server: drop them here too. */
+  function keepOpenDays(o) {
+    if (o?.days) slots = slots.filter((s) => o.days.includes(s.day));
+  }
+
   function onOccasionUpdated(o) {
+    keepOpenDays(o);
     // Broadcasts carry no per-user flags: keep isCreator / canManageGuests computed for me.
     occasion = { ...o, isCreator: o.creatorId === me?.id, canManageGuests: occasion?.canManageGuests };
   }
@@ -177,9 +192,7 @@
     socket.emit('editing', state);
   }
 
-  const range = $derived(
-    occasion && (occasion.startDate === occasion.endDate ? fmtMedium(occasion.startDate) : `${fmtShort(occasion.startDate)} → ${fmtMedium(occasion.endDate)}`),
-  );
+  const range = $derived(occasion && fmtOccasionDays(occasion));
 </script>
 
 {#if error}
@@ -191,10 +204,13 @@
 {:else if !occasion}
   <p class="py-24 text-center text-slate-400">Chargement…</p>
 {:else}
-  <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-    <div class="min-w-0">
-      <a href="/" onclick={link} class="text-sm text-slate-500 hover:text-indigo-600">← Mes occasions</a>
-      <h1 class="mt-1 text-2xl font-bold text-slate-900">{occasion.title}</h1>
+  <!-- Wide screens: both columns have the same height; the back link stays at the top,
+       the title block ends at the same height as the action buttons. -->
+  <div class="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:justify-between {occasion.description ? 'mb-3' : 'mb-6'}">
+    <div class="flex min-w-0 flex-col justify-between gap-1">
+      <a href="/" onclick={link} class="text-link self-start text-sm font-medium">← Mes occasions</a>
+      <div>
+      <h1 class="text-2xl font-bold text-slate-900">{occasion.title}</h1>
       <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
         <span>📅 {range}</span>
         {#if occasion.organization}
@@ -204,7 +220,7 @@
           <span>✏️ Édition jusqu'au {fmtDateTime(occasion.editDeadline)}</span>
         {/if}
       </div>
-      {#if occasion.description}<p class="mt-3 max-w-3xl whitespace-pre-line text-slate-600">{occasion.description}</p>{/if}
+      </div>
     </div>
     <div class="flex w-full flex-col gap-2 lg:w-96">
       {#if !occasion.archived}
@@ -223,6 +239,8 @@
       {/if}
     </div>
   </div>
+
+  {#if occasion.description}<p class="mb-6 max-w-3xl whitespace-pre-line text-slate-600">{occasion.description}</p>{/if}
 
   {#if occasion.archived}
     <div class="mb-4 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-600">
@@ -270,6 +288,8 @@
       onupdate={updateSlot}
       ondelete={deleteSlot}
       onediting={setEditing}
+      {focus}
+      highlight={hovered}
     />
     {/if}
     <GuestList
@@ -282,12 +302,16 @@
       canManage={occasion.canManageGuests && !occasion.archived}
       onremove={removeGuest}
       onaddguests={() => (addingGuests = true)}
+      {focus}
+      onhover={(id) => (hovered = id)}
+      ontoggle={toggleFocus}
+      onclearfocus={() => (focus = new Set())}
     />
   </div>
 {/if}
 
 {#if notice}
-  <div class="fixed bottom-4 left-1/2 z-[60] -translate-x-1/2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg">{notice}</div>
+  <div class="fixed bottom-4 left-1/2 z-[60] -translate-x-1/2 rounded-xl bg-[#0f172a] px-4 py-2.5 text-sm text-white shadow-lg ring-1 ring-white/10">{notice}</div>
 {/if}
 
 {#if addingGuests}
@@ -295,5 +319,10 @@
 {/if}
 
 {#if settingsOpen}
-  <OccasionSettings {occasion} onclose={() => (settingsOpen = false)} onsaved={(o) => { occasion = { ...o, canManageGuests: occasion.canManageGuests }; settingsOpen = false; }} />
+  <OccasionSettings
+    {occasion}
+    {slots}
+    onclose={() => (settingsOpen = false)}
+    onsaved={(o) => { keepOpenDays(o); occasion = { ...o, canManageGuests: occasion.canManageGuests }; settingsOpen = false; }}
+  />
 {/if}
