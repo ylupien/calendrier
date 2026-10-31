@@ -50,6 +50,7 @@ export const api = {
   restoreMember: (id, userId) => request('POST', `/organizations/${id}/members/${userId}/restore`),
   guestCandidates: (slug) => request('GET', `/occasions/${encodeURIComponent(slug)}/candidates`),
   addGuests: (slug, userIds) => request('POST', `/occasions/${encodeURIComponent(slug)}/participants`, { userIds }),
+  transferOwner: (slug, userId) => request('POST', `/occasions/${encodeURIComponent(slug)}/owner`, { userId }),
   removeGuest: (slug, userId) => request('DELETE', `/occasions/${encodeURIComponent(slug)}/participants/${userId}`),
   uploadLogo: (id, file) => upload(`/organizations/${id}/logo`, file),
   deleteLogo: (id) => request('DELETE', `/organizations/${id}/logo`),

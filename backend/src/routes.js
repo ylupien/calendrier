@@ -480,6 +480,25 @@ export function createRoutes(io) {
     res.json({ participants: await activeGuests(o.id) });
   });
 
+  /** Gives the occasion to another guest (creator or organization administrator). */
+  r.post('/occasions/:slug/owner', async (req, res) => {
+    const o = await loadOccasion(req.params.slug);
+    if (!(await canManageGuests(o, req.user.id))) {
+      throw new HttpError(403, "Seuls le créateur et les administrateurs de l'organisation peuvent transférer la propriété.");
+    }
+    const userId = Number(req.body?.userId);
+    if (!Number.isInteger(userId)) throw new HttpError(400, 'Personne invalide.');
+    if (userId === o.creator_id) throw new HttpError(400, 'Cette personne est déjà propriétaire de l\'occasion.');
+    if (!(await activeGuests(o.id)).some((p) => p.id === userId)) {
+      throw new HttpError(400, "La propriété ne peut être donnée qu'à un invité de l'occasion.");
+    }
+
+    await pool.query('UPDATE occasions SET creator_id = ? WHERE id = ?', [userId, o.id]);
+    const updated = await loadOccasion(o.slug);
+    io.to(roomOf(o.slug)).emit('occasion:updated', serializeOccasion(updated, null));
+    res.json({ ...serializeOccasion(updated, req.user.id), canManageGuests: await canManageGuests(updated, req.user.id) });
+  });
+
   /** Creator archives the occasion (read-only for everyone), or undoes a manual archive. */
   r.post('/occasions/:slug/archive', async (req, res) => {
     const o = await loadOccasion(req.params.slug);

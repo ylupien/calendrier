@@ -5,9 +5,11 @@
   // canManage: creator or organization administrator (remove / add guests).
   // focus: people selected to be shown in the calendar (empty = everyone); onhover greys out the others.
   let {
-    participants, colors, slots, presence, me, creatorId, canManage = false, onremove, onaddguests,
+    participants, colors, slots, presence, me, creatorId, canManage = false, onremove, ontransfer, onaddguests,
     focus = new Set(), onhover = () => {}, ontoggle = () => {}, onclearfocus = () => {},
   } = $props();
+
+  let menuFor = $state(null); // guest whose "⋯" menu is open
 
   const online = $derived(new Set(presence.online));
   const editingBy = $derived(new Map(presence.editing.map((e) => [e.userId, e])));
@@ -20,6 +22,11 @@
     return m;
   });
 </script>
+
+<svelte:window
+  onclick={() => (menuFor = null)}
+  onkeydown={(e) => e.key === 'Escape' && (menuFor = null)}
+/>
 
 <aside class="card h-fit p-4">
   <div class="mb-3 flex items-center justify-between">
@@ -73,7 +80,7 @@
           <div class="flex items-center gap-1.5">
             <span class="truncate text-sm font-medium text-slate-800">{p.name}</span>
             {#if p.id === me?.id}<span class="text-xs text-slate-400">(vous)</span>{/if}
-            {#if p.id === creatorId}<span title="Créateur">👑</span>{/if}
+            {#if p.id === creatorId}<span title="Propriétaire de l'occasion">👑</span>{/if}
           </div>
           {#if p.email}<div class="truncate text-xs text-slate-500">{p.email}</div>{/if}
           {#if ed}
@@ -87,11 +94,29 @@
         {#if selected}<span class="shrink-0 text-base" title="Affiché dans le calendrier">👁</span>{/if}
         </button>
         {#if canManage && p.id !== creatorId}
-          <button
-            class="absolute right-1 top-1 rounded-md bg-surface px-1.5 py-0.5 text-xs text-slate-400 opacity-0 shadow-sm transition hover:bg-rose-50 hover:text-rose-600 focus:opacity-100 group-hover:opacity-100"
-            title="Retirer de l'occasion"
-            onclick={() => onremove(p)}
-          >Retirer</button>
+          <!-- Guest actions in a "⋯" menu, so nothing covers the name -->
+          <div class="relative shrink-0 pr-1">
+            <button
+              class="flex h-8 w-8 items-center justify-center rounded-md text-lg leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700 {menuFor === p.id ? 'bg-slate-100 text-slate-700' : ''}"
+              title="Actions"
+              aria-label="Actions pour {p.name}"
+              aria-haspopup="menu"
+              aria-expanded={menuFor === p.id}
+              onclick={(e) => { e.stopPropagation(); menuFor = menuFor === p.id ? null : p.id; }}
+            >⋯</button>
+            {#if menuFor === p.id}
+              <div role="menu" class="absolute right-1 top-full z-20 mt-1 w-52 overflow-hidden rounded-lg border border-slate-200 bg-surface py-1 shadow-lg">
+                <button role="menuitem" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                  onclick={() => { menuFor = null; ontransfer(p); }}>
+                  <span class="w-5 text-center">👑</span>Donner la propriété
+                </button>
+                <button role="menuitem" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                  onclick={() => { menuFor = null; onremove(p); }}>
+                  <span class="w-5 text-center">✕</span>Retirer de l'occasion
+                </button>
+              </div>
+            {/if}
+          </div>
         {/if}
       </li>
     {/each}

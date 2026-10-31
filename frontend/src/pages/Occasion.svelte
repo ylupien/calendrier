@@ -12,6 +12,7 @@
   import OccasionSettings from '../components/OccasionSettings.svelte';
   import Report from '../components/Report.svelte';
   import AddGuests from '../components/AddGuests.svelte';
+  import TransferOwner from '../components/TransferOwner.svelte';
 
   let { slug } = $props();
 
@@ -23,6 +24,7 @@
   let notice = $state('');
   let settingsOpen = $state(false);
   let addingGuests = $state(false);
+  let transferTo = $state(null); // guest about to receive the ownership
   // Guest list → calendar: people selected to be shown (temporary, empty = everyone) and person hovered.
   let focus = $state(new Set());
   let hovered = $state(null);
@@ -85,8 +87,17 @@
 
   function onOccasionUpdated(o) {
     keepOpenDays(o);
+    // The owner changed: reload to get my management rights again.
+    if (occasion && o.creatorId !== occasion.creatorId) return load();
     // Broadcasts carry no per-user flags: keep isCreator / canManageGuests computed for me.
     occasion = { ...o, isCreator: o.creatorId === me?.id, canManageGuests: occasion?.canManageGuests };
+  }
+
+  function ownerTransferred(o) {
+    occasion = o;
+    transferTo = null;
+    settingsOpen = false;
+    flash(`${participants.find((p) => p.id === o.creatorId)?.name ?? 'Cette personne'} est maintenant propriétaire de l'occasion.`);
   }
 
   function onParticipantRemoved({ userId }) {
@@ -301,6 +312,7 @@
       creatorId={occasion.creatorId}
       canManage={occasion.canManageGuests && !occasion.archived}
       onremove={removeGuest}
+      ontransfer={(p) => (transferTo = p)}
       onaddguests={() => (addingGuests = true)}
       {focus}
       onhover={(id) => (hovered = id)}
@@ -316,6 +328,16 @@
 
 {#if addingGuests}
   <AddGuests {occasion} onclose={() => (addingGuests = false)} onadded={(list) => (participants = list)} />
+{/if}
+
+{#if transferTo}
+  <TransferOwner
+    {occasion}
+    person={transferTo}
+    iAmOwner={occasion.isCreator}
+    onclose={() => (transferTo = null)}
+    ondone={ownerTransferred}
+  />
 {/if}
 
 {#if settingsOpen}
