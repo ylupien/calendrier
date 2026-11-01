@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy, tick } from 'svelte';
   import { api } from '../lib/api.js';
-  import { getSocket } from '../lib/socket.js';
+  import { getSocket, ensureConnected } from '../lib/socket.js';
   import { link } from '../lib/router.svelte.js';
   import { session, askProfile } from '../lib/session.svelte.js';
   import { fmtOccasionDays, fmtDateTime, pad } from '../lib/dates.js';
@@ -129,6 +129,12 @@
   onMount(async () => {
     await load();
     if (!occasion) return;
+    // First visit: opening this invitation link has just created the account and its cookie.
+    if (!session.me?.id) {
+      session.me = await api.me();
+      occasion = { ...occasion, isCreator: occasion.creatorId === session.me.id };
+    }
+    ensureConnected();
     if (!me?.name && !occasion.archived) askProfile({ required: true, then: () => upsertParticipant(session.me) });
 
     socket.on('slots:day', applyDay);
@@ -216,8 +222,9 @@
   <p class="py-24 text-center text-slate-400">Chargement…</p>
 {:else}
   <!-- Wide screens: both columns have the same height; the back link stays at the top,
-       the title block ends at the same height as the action buttons. -->
-  <div class="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:justify-between {occasion.description ? 'mb-3' : 'mb-6'}">
+       the title block ends at the same height as the action buttons. The minimum height is the one
+       with the owner's buttons, so the title does not move for guests (who have no buttons). -->
+  <div class="flex flex-col gap-4 lg:min-h-27 lg:flex-row lg:items-stretch lg:justify-between {occasion.description ? 'mb-3' : 'mb-6'}">
     <div class="flex min-w-0 flex-col justify-between gap-1">
       <a href="/" onclick={link} class="text-link self-start text-sm font-medium">← Mes occasions</a>
       <div>

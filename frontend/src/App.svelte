@@ -11,6 +11,7 @@
   import OrgLogo from './components/OrgLogo.svelte';
   import LinkDevice from './components/LinkDevice.svelte';
   import LinkClaim from './pages/LinkClaim.svelte';
+  import Landing from './pages/Landing.svelte';
   import Privacy from './pages/Privacy.svelte';
   import Terms from './pages/Terms.svelte';
   import { REPO_URL } from './lib/project.js';
@@ -52,9 +53,13 @@
 
 <header class="sticky top-0 z-40 border-b border-slate-200 bg-surface/90 backdrop-blur">
   <div class="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:h-16">
-    <a href="/" onclick={link} class="flex min-w-0 items-center gap-2.5 text-slate-900 sm:gap-3">
+    <!-- Fixed width on wide screens: the menu stays in the same place whatever the logo's width -->
+    <a href="/" onclick={link} class="flex min-w-0 items-center gap-2.5 text-slate-900 sm:gap-3 lg:w-80 lg:shrink-0">
       {#if session.branding}
-        <OrgLogo org={session.branding} size="h-8 sm:h-10" />
+        <!-- Same width whatever the logo (or initials), so the menu does not move between occasions -->
+        <span class="flex shrink-0 items-center sm:w-28">
+          <OrgLogo org={session.branding} size="h-8 sm:h-10" maxWidth="max-w-28" />
+        </span>
         <span class="h-6 w-px shrink-0 bg-slate-300 sm:h-7"></span>
       {:else}
         <img src="/favicon.svg" alt="" class="h-8 w-8 shrink-0" />
@@ -63,7 +68,8 @@
     </a>
 
     <!-- Computer: links and buttons in the bar -->
-    <nav class="ml-6 mr-auto hidden gap-1 sm:flex">
+    <!-- Without an account (no invitation yet) there is nothing to navigate to -->
+    <nav class="ml-6 mr-auto hidden gap-1 {session.me?.id ? 'sm:flex' : ''}">
       {#each NAV as n (n.href)}
         <a
           href={n.href}
@@ -72,12 +78,14 @@
         >{n.label}</a>
       {/each}
     </nav>
-    <button class="btn-ghost hidden px-2.5 sm:inline-flex" onclick={nextTheme} title="{THEME_LABELS[theme.mode]} — cliquer pour changer" aria-label={THEME_LABELS[theme.mode]}>
+    <button class="btn-ghost px-2.5 {session.me?.id ? 'hidden sm:inline-flex' : 'ml-auto'}" onclick={nextTheme} title="{THEME_LABELS[theme.mode]} — cliquer pour changer" aria-label={THEME_LABELS[theme.mode]}>
       {THEME_ICONS[theme.mode]}
     </button>
-    <button class="btn-ghost hidden px-2.5 sm:inline-flex" onclick={() => (linking = true)} title="Utiliser mon compte sur mon cellulaire (code QR)">
-      📱<span class="hidden lg:inline">Lier un cellulaire</span>
-    </button>
+    {#if session.me?.id}
+      <button class="btn-ghost hidden px-2.5 sm:inline-flex" onclick={() => (linking = true)} title="Utiliser mon compte sur mon cellulaire (code QR)">
+        📱<span class="hidden lg:inline">Lier un cellulaire</span>
+      </button>
+    {/if}
     {#if session.me?.name}
       <button class="btn-ghost hidden sm:inline-flex" onclick={() => askProfile()} title="Modifier mon profil">
         <span class="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
@@ -88,6 +96,7 @@
     {/if}
 
     <!-- Phone: one menu button -->
+    {#if session.me?.id}
     <button
       class="ml-auto flex shrink-0 items-center gap-2 rounded-full border border-slate-200 py-1 pl-1 pr-3 sm:hidden"
       onclick={() => (menuOpen = !menuOpen)}
@@ -99,6 +108,7 @@
       </span>
       <span class="text-lg leading-none text-slate-600">{menuOpen ? '✕' : '☰'}</span>
     </button>
+    {/if}
   </div>
 
   {#if menuOpen}
@@ -113,14 +123,17 @@
           ><span class="w-6 text-center">{n.icon}</span>{n.label}</a>
         {/each}
         <div class="my-2 border-t border-slate-100"></div>
-        <button class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-base text-slate-700 active:bg-slate-100"
-          onclick={() => { menuOpen = false; linking = true; }}>
-          <span class="w-6 text-center">📱</span>Lier un cellulaire
-        </button>
+        {#if session.me?.id}
+          <button class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-base text-slate-700 active:bg-slate-100"
+            onclick={() => { menuOpen = false; linking = true; }}>
+            <span class="w-6 text-center">📱</span>Lier un cellulaire
+          </button>
+        {/if}
         <button class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-base text-slate-700 active:bg-slate-100" onclick={nextTheme}>
           <span class="w-6 text-center">{THEME_ICONS[theme.mode]}</span>{THEME_LABELS[theme.mode]}
           <span class="ml-auto text-xs text-slate-400">changer</span>
         </button>
+        {#if session.me?.id}
         <button class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left active:bg-slate-100"
           onclick={() => { menuOpen = false; askProfile(); }}>
           <span class="w-6 text-center">👤</span>
@@ -129,6 +142,7 @@
             {#if session.me?.email}<span class="block truncate text-xs text-slate-500">{session.me.email}</span>{/if}
           </span>
         </button>
+        {/if}
       </nav>
     </div>
   {/if}
@@ -149,6 +163,12 @@
     <Privacy />
   {:else if route.path === '/conditions'}
     <Terms />
+  {:else if route.path === '/a-propos'}
+    <!-- Presentation page, also reachable once invited (footer link) -->
+    <Landing />
+  {:else if !session.me.id}
+    <!-- No account yet: presentation of the project (only an invitation link creates an account) -->
+    <Landing />
   {:else if route.path.startsWith('/organisations')}
     <Organizations />
   {:else}
@@ -160,6 +180,8 @@
 <footer class="border-t border-slate-200">
   <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-5 text-xs text-slate-500">
     <span>Conçu par <span class="font-medium text-slate-700">Yanik Lupien</span> et <span class="font-medium text-slate-700">Claude</span></span>
+    <span aria-hidden="true" class="text-slate-300">·</span>
+    <a href="/a-propos" onclick={link} class="text-link">À propos</a>
     <span aria-hidden="true" class="text-slate-300">·</span>
     <a href="/confidentialite" onclick={link} class="text-link">Confidentialité et témoins</a>
     <span aria-hidden="true" class="text-slate-300">·</span>

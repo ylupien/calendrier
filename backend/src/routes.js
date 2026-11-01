@@ -4,6 +4,7 @@ import { pool } from './db.js';
 import { clock } from './clock.js';
 import { roomOf } from './socket.js';
 import { HttpError, cleanText } from './http.js';
+import { createVisitor } from './auth.js';
 import {
   orgBranding, ORG_BRANDING_COLUMNS, canCreateIn, joinOrganization, inviteAllMembers, isOrgAdmin, isActiveMember,
 } from './organizations.js';
@@ -231,7 +232,8 @@ export function createRoutes(io) {
     // publicUrl: address phones can reach (QR codes), e.g. https://disponibilites.example.com
     const host = process.env.PUBLIC_HOSTNAME;
     res.json({
-      ...serializeUser(req.user),
+      // Without a cookie: anonymous (id null) until an invitation link is opened.
+      ...(req.user ? serializeUser(req.user) : { id: null, name: null, email: null }),
       timezone: clock().timezone,
       publicUrl: host ? `https://${host}` : null,
       // Person in charge of personal information (Quebec law: title and contact details must be published).
@@ -325,6 +327,8 @@ export function createRoutes(io) {
   /** Opening an occasion link automatically associates the visitor with it (and with its organization). */
   r.get('/occasions/:slug', async (req, res) => {
     const o = await loadOccasion(req.params.slug);
+    // The invitation link is the only way to get an account (and its cookie).
+    if (!req.user) await createVisitor(req, res);
     if (o.organization_id) {
       const newlyInvited = await joinOrganization(o.organization_id, req.user.id);
       if (req.user.name) {

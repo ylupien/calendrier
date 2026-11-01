@@ -105,13 +105,13 @@ export function createLinkRoutes() {
   r.get('/link/preview/:token', async (req, res) => {
     const t = await findValid(req.params.token);
     if (!t) throw new HttpError(404, 'Ce code QR est expiré ou a déjà été utilisé. Affichez-en un nouveau sur votre ordinateur.');
-    const sameUser = t.user_id === req.user.id;
+    const sameUser = t.user_id === req.user?.id;
     res.json({
       name: t.name,
       target: await accountSummary(t.user_id),
       sameUser,
       // The phone's current account; when it holds data the page offers to merge it.
-      current: sameUser ? null : await accountSummary(req.user.id),
+      current: sameUser || !req.user ? null : await accountSummary(req.user.id),
     });
   });
 
@@ -129,7 +129,7 @@ export function createLinkRoutes() {
       await conn.beginTransaction();
       const [mark] = await conn.query('UPDATE link_tokens SET used_at = NOW() WHERE id = ? AND used_at IS NULL', [t.id]);
       if (!mark.affectedRows) throw new HttpError(409, 'Ce code QR vient déjà d’être utilisé.');
-      if (req.user.id !== t.user_id && req.body?.merge !== false) await mergeUsers(conn, req.user.id, t.user_id);
+      if (req.user && req.user.id !== t.user_id && req.body?.merge !== false) await mergeUsers(conn, req.user.id, t.user_id);
       await conn.commit();
     } catch (err) {
       await conn.rollback();

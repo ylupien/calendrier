@@ -2,7 +2,7 @@
   import { link } from '../lib/router.svelte.js';
   import { session } from '../lib/session.svelte.js';
 
-  const UPDATED = '31 octobre 2026';
+  const UPDATED = '1er novembre 2026';
   const contact = $derived(session.me?.legal ?? {});
 </script>
 
@@ -33,7 +33,9 @@
 
   <h2>En bref</h2>
   <ul>
-    <li>L'application utilise <strong>un seul témoin (cookie)</strong>, strictement nécessaire à son fonctionnement.</li>
+    <li>L'application utilise <strong>un seul témoin (cookie)</strong>, strictement nécessaire à son fonctionnement.
+      Il n'est créé que lorsque vous ouvrez le lien d'une occasion qu'on vous a partagé (ou liez un appareil) :
+      une simple visite de la page d'accueil n'en crée aucun.</li>
     <li><strong>Aucun</strong> témoin publicitaire, de mesure d'audience, de pistage ou de réseau social.</li>
     <li>Aucune vente, location ni communication de vos renseignements à des fins commerciales.</li>
     <li>Pas de compte ni de mot de passe : seul votre nom est demandé, le courriel est facultatif.</li>
@@ -48,7 +50,7 @@
           <td data-label="Nom"><code>rc_uid</code></td>
           <td data-label="Type">Témoin essentiel</td>
           <td data-label="Utilité">Reconnaître votre navigateur pour retrouver vos occasions et vos disponibilités, sans compte ni mot de passe.
-            Il contient un identifiant aléatoire, rien d'autre.</td>
+            Il contient un identifiant aléatoire, rien d'autre. Créé à l'ouverture d'un lien d'invitation ou à la liaison d'un appareil.</td>
           <td data-label="Durée">Renouvelé à chaque visite (les navigateurs le limitent à environ 400 jours sans visite)</td>
         </tr>
         <tr>

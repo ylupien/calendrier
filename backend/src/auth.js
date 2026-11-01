@@ -25,20 +25,43 @@ export async function findUserByToken(token) {
   return rows[0] || null;
 }
 
-/** Express middleware: identifies the visitor by cookie, creating a user on first visit. */
+/**
+ * Express middleware: identifies the visitor by cookie. A visitor without a cookie stays
+ * anonymous (req.user = null): accounts are only created by an invitation (see createVisitor).
+ */
 export async function identify(req, res, next) {
-  let token = req.cookies?.[COOKIE_NAME];
-  let user = await findUserByToken(token);
-  if (!user) {
-    token = crypto.randomBytes(32).toString('hex');
-    const [result] = await pool.query('INSERT INTO users (token) VALUES (?)', [token]);
-    user = { id: result.insertId, name: null, email: null };
-  } else {
+  const token = req.cookies?.[COOKIE_NAME];
+  const user = await findUserByToken(token);
+  if (user) {
     pool.query('UPDATE users SET last_seen_at = NOW() WHERE id = ?', [user.id]).catch(() => {});
+    res.cookie(COOKIE_NAME, token, cookieOptions());
   }
-  res.cookie(COOKIE_NAME, token, cookieOptions());
   req.user = user;
   next();
+}
+
+/** Creates the visitor and its permanent cookie (opening an occasion's invitation link). */
+export async function createVisitor(req, res) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const [result] = await pool.query('INSERT INTO users (token) VALUES (?)', [token]);
+  res.cookie(COOKIE_NAME, token, cookieOptions());
+  req.user = { id: result.insertId, name: null, email: null };
+  return req.user;
+}
+
+// Routes reachable without a cookie: everything else needs an invitation first.
+const OPEN_ROUTES = [
+  ['GET', /^\/me\/?$/],
+  ['GET', /^\/occasions\/[\w-]+\/?$/], // invitation link: creates the visitor
+  ['GET', /^\/link\/preview\/[\w-]+\/?$/], // phone linking to an existing account
+  ['POST', /^\/link\/claim\/?$/],
+  ['GET', /^\/organizations\/\d+\/logo\/?$/],
+];
+
+/** Express middleware: refuses anonymous visitors outside the open routes. */
+export function requireUser(req, res, next) {
+  if (req.user || OPEN_ROUTES.some(([m, re]) => m === req.method && re.test(req.path))) return next();
+  res.status(401).json({ error: "Accès sur invitation : ouvrez le lien d'une occasion qu'on vous a partagé." });
 }
 
 /** Replaces the identification cookie of this response (used when linking a device to another user). */

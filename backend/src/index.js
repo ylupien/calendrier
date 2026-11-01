@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { migrate } from './db.js';
-import { identify } from './auth.js';
+import { identify, requireUser } from './auth.js';
 import { createSocketServer } from './socket.js';
 import { createRoutes, errorHandler } from './routes.js';
 import { createOrganizationRoutes } from './organizations.js';
@@ -32,7 +32,7 @@ const server = http.createServer(app);
 const io = await createSocketServer(server);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
-app.use('/api', identify, createRoutes(io), createOrganizationRoutes(), createLinkRoutes());
+app.use('/api', identify, requireUser, createRoutes(io), createOrganizationRoutes(), createLinkRoutes());
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Introuvable.' }));
 
 // Production: serve the compiled frontend (STATIC_DIR=/app/public, see the root Dockerfile).

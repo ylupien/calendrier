@@ -6,7 +6,8 @@ disponibilités de tout le monde, **en temps réel**, et un **rapport** fait res
 personnes sont disponibles en même temps.
 
 Aucun compte ni mot de passe : chaque visiteur est reconnu par un cookie permanent, et peut retrouver son
-identité sur un autre appareil grâce à un code QR.
+identité sur un autre appareil grâce à un code QR. L'accès se fait **sur invitation** : le cookie n'est créé
+qu'en ouvrant le lien d'une occasion.
 
 Interface en français. Stack : **Svelte 5 + Vite + Tailwind CSS 4** (frontend), **Node.js + Express 5 +
 Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**. Code versé dans le
@@ -20,11 +21,11 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 
 | Calendrier d'une occasion (vue Semaine) | Rapport : meilleurs moments (mode sombre) |
 |---|---|
-| ![Vue Semaine : barres de disponibilité de chaque invité, avec heure de début, initiales et heure de fin](docs/captures/calendrier-semaine.png) | ![Rapport : carte de chaleur et meilleurs moments, en mode sombre](docs/captures/rapport-sombre.png) |
+| ![Vue Semaine : barres de disponibilité de chaque invité, avec heure de début, initiales et heure de fin](frontend/public/captures/calendrier-semaine.png) | ![Rapport : carte de chaleur et meilleurs moments, en mode sombre](frontend/public/captures/rapport-sombre.png) |
 
 | Mes occasions | Éditeur de plages sur cellulaire |
 |---|---|
-| ![Liste des occasions avec logos d'organisations et couronne pour celles que l'on gère](docs/captures/mes-occasions.png) | <img src="docs/captures/mobile-editeur.png" alt="Éditeur de plages sur cellulaire : deux lignes avant-midi / après-midi" width="300"> |
+| ![Liste des occasions avec logos d'organisations et couronne pour celles que l'on gère](frontend/public/captures/mes-occasions.png) | <img src="frontend/public/captures/mobile-editeur.png" alt="Éditeur de plages sur cellulaire : deux lignes avant-midi / après-midi" width="300"> |
 
 ---
 
@@ -160,7 +161,11 @@ Variables du fichier `.env` (modèle : `.env.example`) :
 ## Fonctionnement détaillé
 
 ### Identification sans compte
-- À la première visite, `GET /api/me` crée un utilisateur et pose le cookie `rc_uid` (httpOnly, expiration en 9999).
+- **Sur invitation** : seule l'ouverture du lien d'une occasion (`GET /api/occasions/:slug`) crée un utilisateur et
+  pose le cookie `rc_uid` (httpOnly, expiration en 9999). Sans cookie, l'accueil affiche une page de présentation
+  du projet (avec ces captures ; accessible à tous à `/a-propos`, lien « À propos » du pied de page) et l'API
+  refuse tout le reste (401), sauf `GET /me`, la liaison d'appareil et les logos : impossible de créer une
+  occasion ou une organisation sans avoir été invité.
   Les navigateurs plafonnant la durée des cookies (400 jours pour Chrome), il est réémis à chaque appel : il
   n'expire pas tant que la personne revient.
 - **Lier un appareil** : l'ordinateur génère un jeton aléatoire (stocké sous forme d'empreinte SHA-256, valable
@@ -208,7 +213,9 @@ calculée sur les connexions de tous les serveurs.
 
 ## API REST
 
-Préfixe `/api`. Toutes les routes identifient le visiteur par son cookie. Les heures sont en minutes depuis minuit.
+Préfixe `/api`. Toutes les routes identifient le visiteur par son cookie ; sans cookie, seules `GET /me`,
+`GET /occasions/:slug` (qui crée le visiteur), `GET /link/preview/:token`, `POST /link/claim` et
+`GET /organizations/:id/logo` répondent. Les heures sont en minutes depuis minuit.
 
 | Méthode | Route | Description |
 |---------|-------|-------------|
@@ -219,6 +226,7 @@ Préfixe `/api`. Toutes les routes identifient le visiteur par son cookie. Les h
 | POST · PATCH · DELETE | `/occasions/:slug/slots[/:id]` | Plages : ajouter `{ day, start, end }`, modifier, supprimer |
 | GET | `/occasions/:slug/candidates` | Personnes ajoutables comme invités |
 | POST · DELETE | `/occasions/:slug/participants[/:userId]` | Ajouter `{ userIds }` / retirer un invité |
+| POST | `/occasions/:slug/owner` | Donner la propriété à un invité `{ userId }` |
 | GET / POST | `/organizations` | Mes organisations / créer |
 | GET · PATCH · DELETE | `/organizations/:id` | Détail (membres pour les gestionnaires) / modifier / supprimer |
 | PUT · DELETE | `/organizations/:id/members/:userId` | Droits `{ canCreate, isAdmin }` / retirer |
@@ -270,7 +278,6 @@ Après une modification du code, reconstruire la production : `docker compose up
 ├── docker-compose.yml        services (développement, Redis, production, tunnel)
 ├── Dockerfile                image de production (frontend compilé + backend)
 ├── scripts/web.sh            publication Cloudflare Tunnel
-├── docs/captures/            captures d'écran du README
 ├── LICENSE                   domaine public (Unlicense)
 ├── backend/
 │   └── src/
@@ -283,9 +290,10 @@ Après une modification du code, reconstruire la production : `docker compose up
 │       ├── socket.js         temps réel et présence (adaptateur Redis)
 │       └── clock.js          date et heure dans le fuseau de l'application
 └── frontend/
+    ├── public/captures/  captures d'écran (README et page de présentation)
     └── src/
         ├── App.svelte        en-tête, menu, routage
-        ├── pages/            Home, Occasion, Organizations, LinkClaim, Privacy, Terms
+        ├── pages/            Landing, Home, Occasion, Organizations, LinkClaim, Privacy, Terms
         ├── components/       calendrier (Calendar, MonthView, TimeGrid, DayOverlay), Report,
         │                     GuestList, éditeurs d'occasion et d'organisation, LinkDevice…
         └── lib/              API, dates, socket, routeur, session, thème, verrouillage du défilement

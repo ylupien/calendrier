@@ -3,7 +3,7 @@
   import { session } from '../lib/session.svelte.js';
   import { REPO_URL } from '../lib/project.js';
 
-  const UPDATED = '31 octobre 2026';
+  const UPDATED = '1er novembre 2026';
   const contact = $derived(session.me?.legal ?? {});
 </script>
 
@@ -21,7 +21,8 @@
   <p>
     <em>Disponibilités</em> permet de créer des occasions, de partager un lien et d'indiquer ses plages de
     disponibilité afin de trouver un moment commun. Le service est offert gratuitement, sans compte ni mot de passe :
-    votre navigateur est reconnu par un témoin essentiel (voir la page
+    votre navigateur est reconnu par un témoin essentiel, créé lorsque vous ouvrez le lien d'une occasion qu'on vous
+    a partagé. L'accès se fait donc sur invitation (voir la page
     <a href="/confidentialite" onclick={link} class="text-link">Confidentialité et témoins</a>).
   </p>
 
