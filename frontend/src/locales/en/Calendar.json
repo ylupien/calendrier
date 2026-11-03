@@ -1,0 +1,16 @@
+{
+  "views": {
+    "day": "Day",
+    "week": "Week",
+    "month": "Month"
+  },
+  "previous": "Previous",
+  "next": "Next",
+  "today": "Today",
+  "noGuests": "No guests yet.",
+  "notInOccasion": "This day is not part of the occasion.",
+  "previousDay": "Previous day",
+  "nextDay": "Next day",
+  "clickHint": "Click a day to add your availability.",
+  "readOnly": "Read only."
+}

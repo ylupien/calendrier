@@ -17,15 +17,15 @@ export async function assertLoginEmailFree(email, exceptUserId = 0) {
     'SELECT 1 FROM users WHERE email = ? AND password_hash IS NOT NULL AND id <> ?',
     [email, exceptUserId],
   );
-  if (rows.length) throw new HttpError(409, 'Ce courriel sert déjà à la connexion d’un autre compte.');
+  if (rows.length) throw new HttpError(409, 'emailInUse');
 }
 
 export function parsePassword(value) {
   const password = typeof value === 'string' ? value : '';
   if (password.length < PASSWORD_MIN) {
-    throw new HttpError(400, `Le mot de passe doit compter au moins ${PASSWORD_MIN} caractères.`);
+    throw new HttpError(400, 'passwordTooShort', { min: PASSWORD_MIN });
   }
-  if (password.length > 200) throw new HttpError(400, 'Mot de passe trop long.');
+  if (password.length > 200) throw new HttpError(400, 'passwordTooLong');
   return password;
 }
 
@@ -77,6 +77,27 @@ function overLimit(key, max) {
   return ++s.count > max;
 }
 
+/**
+ * The account that uses this email. Older accounts may share an address: the one with a password,
+ * otherwise the one with the most ranges, otherwise the most recently seen.
+ */
+export async function findUserByEmail(email, conn = pool) {
+  const [[user]] = await conn.query(
+    `SELECT u.id, u.name, u.email, u.locale, u.activated_at IS NOT NULL AS active FROM users u WHERE u.email = ?
+     ORDER BY u.password_hash IS NOT NULL DESC,
+       (SELECT COUNT(*) FROM availabilities a WHERE a.user_id = u.id) DESC, u.last_seen_at DESC
+     LIMIT 1`,
+    [email],
+  );
+  return user ?? null;
+}
+
+/** Address of the site for links in emails (https://PUBLIC_HOSTNAME, or the address of the request). */
+export function siteBase(req) {
+  const host = process.env.PUBLIC_HOSTNAME;
+  return host ? `https://${host}` : `${req.protocol}://${req.get('host')}`;
+}
+
 /** Path of this site only ("//site" and "/\\site" would leave it). */
 export const safeReturnPath = (value) => (typeof value === 'string' && /^\/(?![/\\])/.test(value) ? value : null);
 
@@ -88,7 +109,7 @@ export function createAccountRoutes() {
     const email = cleanText(req.body?.email, 255).toLowerCase();
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
     const keys = [`ip:${req.ip}`, `email:${email}`];
-    if (tooManyFailures(keys)) throw new HttpError(429, 'Trop de tentatives. Réessayez dans quelques minutes.');
+    if (tooManyFailures(keys)) throw new HttpError(429, 'tooManyAttempts');
 
     const [rows] = await pool.query(
       `SELECT ${USER_COLUMNS}, token, password_hash FROM users WHERE email = ? AND password_hash IS NOT NULL`,
@@ -96,7 +117,7 @@ export function createAccountRoutes() {
     );
     if (!email || !rows.length || !(await verifyPassword(password, rows[0].password_hash))) {
       recordFailure(keys);
-      throw new HttpError(401, 'Courriel ou mot de passe incorrect.');
+      throw new HttpError(401, 'badCredentials');
     }
     const target = rows[0];
 
@@ -114,29 +135,24 @@ export function createAccountRoutes() {
    * has an account or not, so that it cannot be used to find out who uses the site.
    */
   r.post('/auth/email-link', async (req, res) => {
-    if (!mailEnabled()) throw new HttpError(503, "L'envoi de courriels n'est pas encore configuré sur ce site.");
+    if (!mailEnabled()) throw new HttpError(503, 'mailDisabled');
     const email = cleanText(req.body?.email, 255).toLowerCase();
-    if (!EMAIL_RE.test(email)) throw new HttpError(400, 'Courriel invalide.');
+    if (!EMAIL_RE.test(email)) throw new HttpError(400, 'invalidEmail');
     if (overLimit(`ip:${req.ip}`, 10) || overLimit(`email:${email}`, 3)) {
-      throw new HttpError(429, 'Trop de demandes. Réessayez dans quelques minutes.');
+      throw new HttpError(429, 'tooManyRequests');
     }
 
-    // Older accounts may share an address: the one with a password, otherwise the one with the most ranges.
-    const [[user]] = await pool.query(
-      `SELECT u.id, u.name FROM users u WHERE u.email = ?
-       ORDER BY u.password_hash IS NOT NULL DESC,
-         (SELECT COUNT(*) FROM availabilities a WHERE a.user_id = u.id) DESC, u.last_seen_at DESC
-       LIMIT 1`,
-      [email],
-    );
+    const user = await findUserByEmail(email);
     if (user) {
       const { token } = await createLinkToken(user.id, EMAIL_LINK_MINUTES);
-      const host = process.env.PUBLIC_HOSTNAME;
-      const base = host ? `https://${host}` : `${req.protocol}://${req.get('host')}`;
+      const base = siteBase(req);
       const back = safeReturnPath(req.body?.retour);
       const url = `${base}/lier/${token}${back ? `?retour=${encodeURIComponent(back)}` : ''}`;
       try {
-        const mail = signInMail({ name: user.name, url, minutes: EMAIL_LINK_MINUTES, logoUrl: staticAssetUrl(base, '/logo-disponibilites.png') });
+        // In the language of the person asking (they are on the site right now).
+        const mail = signInMail({
+          t: req.t, name: user.name, url, minutes: EMAIL_LINK_MINUTES, logoUrl: staticAssetUrl(base, '/logo-disponibilites.png'),
+        });
         await sendMail({ to: email, ...mail });
       } catch (err) {
         // Not shown to the visitor (same answer for every address), but logged for the administrator.
@@ -154,12 +170,12 @@ export function createAccountRoutes() {
 
   /** Chooses or changes my password (the current one is required to change it). */
   r.put('/me/password', async (req, res) => {
-    if (!req.user.email) throw new HttpError(400, 'Indiquez d’abord votre courriel dans votre profil : il sert à vous connecter.');
+    if (!req.user.email) throw new HttpError(400, 'emailFirst');
     const password = parsePassword(req.body?.password);
     if (req.user.hasPassword) {
       const [[row]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.user.id]);
       if (!(await verifyPassword(String(req.body?.currentPassword ?? ''), row.password_hash))) {
-        throw new HttpError(403, 'Mot de passe actuel incorrect.');
+        throw new HttpError(403, 'wrongCurrentPassword');
       }
     }
     await assertLoginEmailFree(req.user.email, req.user.id);

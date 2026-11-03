@@ -1,0 +1,5 @@
+{
+  "common": "Commun",
+  "coverage": "{{count}}/{{total}} disponibles de {{from}} à {{to}}",
+  "editing": "{{name}} est en train de modifier"
+}

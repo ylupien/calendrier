@@ -1,9 +1,10 @@
 export const route = $state({ path: location.pathname });
 
 export function navigate(path) {
-  if (path === route.path) return;
+  if (path === location.pathname + location.search) return;
   history.pushState({}, '', path);
-  route.path = path;
+  // Path only: a query string (?retour=…) stays in the address, read by the page itself.
+  route.path = location.pathname;
   window.scrollTo(0, 0);
 }
 

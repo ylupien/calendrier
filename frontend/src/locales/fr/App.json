@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "occasions": "Occasions",
+    "organizations": "Organisations",
+    "admin": "Administration"
+  },
+  "zoomLogo": "Agrandir le logo",
+  "signIn": "Se connecter",
+  "themeTitle": "{{label}} — cliquer pour changer",
+  "linkPhoneTitle": "Utiliser mon compte sur mon cellulaire (code QR)",
+  "linkPhone": "Lier un cellulaire",
+  "myProfile": "Mon profil",
+  "menu": "Menu",
+  "closeMenu": "Fermer le menu",
+  "change": "changer",
+  "serverUnreachable": "Impossible de joindre le serveur : {{error}}",
+  "footer": {
+    "madeBy": "Conçu par <strong>Yanik Lupien</strong> et <strong>Claude</strong>",
+    "about": "À propos",
+    "privacy": "Confidentialité et témoins",
+    "terms": "Conditions d'utilisation",
+    "source": "Code source (domaine public)",
+    "sourceTitle": "Code source sur GitHub, versé dans le domaine public"
+  },
+  "userMenu": "Mon compte",
+  "profile": "Profil"
+}

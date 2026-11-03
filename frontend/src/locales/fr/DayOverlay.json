@@ -1,0 +1,39 @@
+{
+  "presets": {
+    "morning": "Matin",
+    "afternoon": "Après-midi",
+    "evening": "Soirée",
+    "day": "Journée"
+  },
+  "rows": {
+    "am": "Avant-midi",
+    "pm": "Après-midi"
+  },
+  "inProgress": "{{from}} – {{to}} (en cours)",
+  "emptyRowPhone": "Touchez ou glissez ici",
+  "emptyRow": "Cliquez ou glissez ici pour ajouter une plage",
+  "you": "Vous",
+  "slotTitle": "Cliquez pour modifier · glissez pour déplacer · étirez les bords · glissez hors de la ligne pour supprimer",
+  "previousDay": "Journée précédente",
+  "nextDay": "Journée suivante",
+  "newRange": "Nouvelle plage",
+  "phoneHelp": "Touchez ou glissez pour créer · touchez une plage puis tirez ses bords.",
+  "mine": "Mes disponibilités",
+  "help": "Vous pouvez avoir plusieurs plages par jour. Cliquez ou glissez sur une zone libre de votre ligne pour en créer une. Cliquez une plage pour la modifier, étirez ses bords pour la redimensionner, glissez-la hors de la ligne pour la supprimer.",
+  "selected": "Plage sélectionnée :",
+  "deleteRange": "Supprimer la plage",
+  "selectToDelete": "Sélectionnez une plage pour la supprimer.",
+  "newRangeTitle": "Choisir les heures d’une nouvelle plage",
+  "noRoom": "Plus de place libre dans cette journée",
+  "quickAdd": "Ajout rapide :",
+  "addThis": "Ajouter cette plage",
+  "overlapsShort": "Chevauche une de vos plages",
+  "overlaps": "Cette plage chevauche une de vos plages.",
+  "start": "Heure de début",
+  "end": "Heure de fin",
+  "add": "Ajouter",
+  "others": "Les autres invités",
+  "dayAvailability": "Disponibilités de la journée",
+  "nobodyElse": "Personne d'autre n'a encore indiqué de disponibilité pour cette journée.",
+  "nobody": "Personne n'a indiqué de disponibilité pour cette journée."
+}

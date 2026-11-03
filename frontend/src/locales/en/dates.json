@@ -1,0 +1,6 @@
+{
+  "dateTime": "{{date}} at {{time}}",
+  "noDay": "No day",
+  "range_one": "{{from}} → {{to}} · {{count}} day",
+  "range_other": "{{from}} → {{to}} · {{count}} days"
+}

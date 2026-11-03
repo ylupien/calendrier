@@ -1,0 +1,16 @@
+{
+  "title": "Lier un cellulaire",
+  "copyPrompt": "Copiez ce lien :",
+  "linked": "Appareil lié",
+  "linkedText": "Vous retrouvez maintenant vos occasions et disponibilités sur votre cellulaire.",
+  "done": "Terminer",
+  "scan": "Scannez ce code avec l'appareil photo de votre cellulaire. Vous y serez reconnu comme sur cet ordinateur, sans mot de passe.",
+  "expired": "Code expiré",
+  "newCode": "Nouveau code",
+  "validFor": "Valide encore",
+  "singleUse": "utilisable une seule fois",
+  "waiting": "En attente du cellulaire",
+  "copied": "✓ Lien copié",
+  "copyInstead": "Copier le lien à la place",
+  "warning": "Ne partagez pas ce code : il donne accès à votre compte. Si le cellulaire avait déjà ses propres occasions, il vous proposera de fusionner les deux comptes."
+}

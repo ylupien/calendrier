@@ -1,28 +1,31 @@
+import { i18n, t } from './i18n.svelte.js';
+
 async function request(method, url, body) {
   const res = await fetch(`/api${url}`, {
     method,
     credentials: 'same-origin',
-    headers: body ? { 'Content-Type': 'application/json' } : {},
+    // The chosen language (not the browser's): the server answers in it (error messages, emails).
+    headers: { 'Accept-Language': i18n.lang, ...(body ? { 'Content-Type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(data.error || `Erreur ${res.status}`);
+    const err = new Error(data.error || t('common.httpError', { status: res.status }));
     err.status = res.status;
     throw err;
   }
   return data;
 }
 
-async function upload(url, file) {
+async function upload(url, file, method = 'PUT') {
   const res = await fetch(`/api${url}`, {
-    method: 'PUT',
+    method,
     credentials: 'same-origin',
-    headers: { 'Content-Type': file.type },
+    headers: { 'Accept-Language': i18n.lang, 'Content-Type': file.type },
     body: file,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+  if (!res.ok) throw new Error(data.error || t('common.httpError', { status: res.status }));
   return data;
 }
 
@@ -51,9 +54,18 @@ export const api = {
   guestCandidates: (slug) => request('GET', `/occasions/${encodeURIComponent(slug)}/candidates`),
   addGuests: (slug, userIds) => request('POST', `/occasions/${encodeURIComponent(slug)}/participants`, { userIds }),
   transferOwner: (slug, userId) => request('POST', `/occasions/${encodeURIComponent(slug)}/owner`, { userId }),
+  inviteByEmail: (slug, invitees, message = '') =>
+    request('POST', `/occasions/${encodeURIComponent(slug)}/invitations`, { invitees, message }),
   removeGuest: (slug, userId) => request('DELETE', `/occasions/${encodeURIComponent(slug)}/participants/${userId}`),
   uploadLogo: (id, file) => upload(`/organizations/${id}/logo`, file),
   deleteLogo: (id) => request('DELETE', `/organizations/${id}/logo`),
+  // Logos made in the gallery (composed PNG and the choices that made it); a logo of the organization.
+  createGenericLogo: (id, file, { emblem, font, caption, background }) =>
+    upload(`/organizations/${id}/generic-logos?${new URLSearchParams({ emblem, font, caption, background })}`, file, 'POST'),
+  updateGenericLogo: (id, logoId, file, { emblem, font, caption, background }) =>
+    upload(`/organizations/${id}/logos/${logoId}?${new URLSearchParams({ emblem, font, caption, background })}`, file),
+  uploadLogoDark: (id, logoId, file) => upload(`/organizations/${id}/logos/${logoId}/dark`, file),
+  deleteOrgLogo: (id, logoId) => request('DELETE', `/organizations/${id}/logos/${logoId}`),
   deleteSlot: (slug, id) => request('DELETE', `/occasions/${encodeURIComponent(slug)}/slots/${id}`),
   login: (email, password) => request('POST', '/auth/login', { email, password }),
   logout: () => request('POST', '/auth/logout'),

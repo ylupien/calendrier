@@ -13,17 +13,22 @@ function read() {
 }
 
 export const theme = $state({ mode: read() });
+/** Mode actually shown (the system's when theme.mode is 'system'). */
+export const shown = $state({ dark: false });
 
 function apply() {
   const dark = theme.mode === 'dark' || (theme.mode === 'system' && media.matches);
   document.documentElement.classList.toggle('dark', dark);
+  shown.dark = dark;
 }
 
 media.addEventListener('change', apply);
 apply();
 
 const ORDER = ['system', 'light', 'dark'];
-export const THEME_LABELS = { system: 'Thème du système', light: 'Thème clair', dark: 'Thème sombre' };
+import { t } from './i18n.svelte.js';
+
+export const themeLabel = (mode) => t(`common.theme.${mode}`);
 export const THEME_ICONS = { system: '🖥️', light: '☀️', dark: '🌙' };
 
 /** Cycles system → light → dark. */

@@ -1,0 +1,29 @@
+{
+  "title": "Mes organisations",
+  "intro": "Les organisations dont vous êtes responsable ou membre.",
+  "new": "Nouvelle organisation",
+  "empty": {
+    "title": "Aucune organisation pour l'instant",
+    "text": "Créez une organisation pour regrouper vos occasions sous un même logo, ou ouvrez le lien d'une occasion d'une organisation : vous en deviendrez membre automatiquement.",
+    "create": "Créer une organisation"
+  },
+  "role": {
+    "owner": "Responsable",
+    "admin": "Administrateur",
+    "member": "Membre"
+  },
+  "mode": {
+    "free": "Mode libre",
+    "restricted": "Mode autorisé"
+  },
+  "members_one": "{{count}} membre",
+  "members_other": "{{count}} membres",
+  "canCreate": "Vous pouvez créer des occasions",
+  "cannotCreate": "Création non autorisée",
+  "activeOccasions": "Occasions en cours et à venir ({{n}})",
+  "noActive": "Aucune occasion en cours ou à venir.",
+  "archivedMore_one": "+ {{count}} archivée",
+  "archivedMore_other": "+ {{count}} archivées",
+  "manage": "Gérer",
+  "occasion": "Occasion"
+}

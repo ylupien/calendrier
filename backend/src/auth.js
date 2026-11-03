@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { parseCookie } from 'cookie';
 import { pool } from './db.js';
+import { explicitLang } from './i18n.js';
 
 export const COOKIE_NAME = 'rc_uid';
 const TOKEN_RE = /^[a-f0-9]{64}$/;
@@ -20,7 +21,8 @@ function cookieOptions() {
 }
 
 /** Fields of req.user (and of the socket's user). */
-export const USER_COLUMNS = 'id, name, email, password_hash IS NOT NULL AS has_password, is_site_admin';
+export const USER_COLUMNS =
+  'id, name, email, locale, password_hash IS NOT NULL AS has_password, is_site_admin, activated_at IS NOT NULL AS is_active';
 
 export const toUser = (row) =>
   row && {
@@ -29,6 +31,8 @@ export const toUser = (row) =>
     email: row.email,
     hasPassword: !!row.has_password,
     isSiteAdmin: !!row.is_site_admin,
+    active: !!row.is_active,
+    locale: row.locale ?? null,
   };
 
 export async function findUserByToken(token) {
@@ -73,20 +77,49 @@ export async function identify(req, res, next) {
   const token = req.cookies?.[COOKIE_NAME];
   const user = await findUserByToken(token);
   if (user) {
-    pool.query('UPDATE users SET last_seen_at = NOW() WHERE id = ?', [user.id]).catch(() => {});
+    if (user.active) {
+      pool.query('UPDATE users SET last_seen_at = NOW() WHERE id = ?', [user.id]).catch(() => {});
+    } else {
+      // First use of an account prepared by an invitation (or by the administrator).
+      await pool.query('UPDATE users SET last_seen_at = NOW(), activated_at = NOW() WHERE id = ?', [user.id]);
+      user.active = true;
+      Promise.resolve(onActivated(user)).catch((err) => console.error('[auth] activation', err));
+    }
+    // Language chosen in the application, kept for the emails sent to this person.
+    const lang = explicitLang(req);
+    if (lang && lang !== user.locale) {
+      user.locale = lang;
+      pool.query('UPDATE users SET locale = ? WHERE id = ?', [lang, user.id]).catch(() => {});
+    }
     res.cookie(COOKIE_NAME, token, cookieOptions());
   }
   req.user = user;
   next();
 }
 
+// Called once, when an account is used for the first time (index.js shows it as a member of its occasions).
+let onActivated = () => {};
+export function setActivationListener(fn) {
+  onActivated = fn;
+}
+
 /** Creates the visitor and its permanent cookie (opening an occasion's invitation link). */
 export async function createVisitor(req, res) {
   const token = crypto.randomBytes(32).toString('hex');
-  const [result] = await pool.query('INSERT INTO users (token) VALUES (?)', [token]);
+  const locale = explicitLang(req);
+  const [result] = await pool.query('INSERT INTO users (token, locale, activated_at) VALUES (?, ?, NOW())', [token, locale]);
   res.cookie(COOKIE_NAME, token, cookieOptions());
-  req.user = { id: result.insertId, name: null, email: null, hasPassword: false, isSiteAdmin: false };
+  req.user = { id: result.insertId, name: null, email: null, hasPassword: false, isSiteAdmin: false, active: true, locale };
   return req.user;
+}
+
+/** An account prepared for someone who has not used the site yet (invitation by email, in `locale`). */
+export async function createPreparedUser(conn, { name, email, locale = null }) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const [result] = await conn.query('INSERT INTO users (token, name, email, locale) VALUES (?, ?, ?, ?)', [
+    token, name, email, locale,
+  ]);
+  return result.insertId;
 }
 
 // Routes reachable without a cookie: everything else needs an invitation first.
@@ -98,12 +131,13 @@ const OPEN_ROUTES = [
   ['POST', /^\/auth\/login\/?$/], // email + password: back to an existing account
   ['POST', /^\/auth\/email-link\/?$/], // sign-in link by email
   ['GET', /^\/organizations\/\d+\/logo\/?$/],
+  ['GET', /^\/logos\/\d+\/?$/], // organization logos (public)
 ];
 
 /** Express middleware: refuses anonymous visitors outside the open routes. */
 export function requireUser(req, res, next) {
   if (req.user || OPEN_ROUTES.some(([m, re]) => m === req.method && re.test(req.path))) return next();
-  res.status(401).json({ error: "Accès sur invitation : ouvrez le lien d'une occasion qu'on vous a partagé." });
+  res.status(401).json({ error: req.t('errors.inviteOnly') });
 }
 
 /** Removes the identification cookie (sign out on this device). */

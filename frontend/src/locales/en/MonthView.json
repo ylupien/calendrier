@@ -1,0 +1,7 @@
+{
+  "available_one": "{{count}} person available",
+  "available_other": "{{count}} people available",
+  "others_one": "+{{count}} other",
+  "others_other": "+{{count}} others",
+  "editing": "{{name}} is editing this day"
+}

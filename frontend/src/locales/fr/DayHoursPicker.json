@@ -1,0 +1,7 @@
+{
+  "label": "Heures de la journée",
+  "start": "Heure de début de la journée",
+  "to": "à",
+  "end": "Heure de fin de la journée",
+  "help": "Le calendrier n'affiche que ces heures, et les plages doivent s'y trouver."
+}

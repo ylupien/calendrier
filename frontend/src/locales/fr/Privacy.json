@@ -1,0 +1,91 @@
+{
+  "title": "Confidentialité et témoins",
+  "updated": "Dernière mise à jour : 1er novembre 2026",
+  "officer": "Responsable de la protection des renseignements personnels",
+  "noContact": "Les coordonnées du responsable de la protection des renseignements personnels ne sont pas encore configurées.",
+  "intro": "Cette page explique, en termes simples, quels renseignements l'application <em>Disponibilités</em> recueille, pourquoi, qui peut les voir et quels sont vos droits. Elle s'appuie sur la <em>Loi sur la protection des renseignements personnels dans le secteur privé</em> du Québec, modernisée par la Loi 25.",
+  "summary": {
+    "title": "En bref",
+    "cookie": "L'application utilise <strong>un seul témoin (cookie)</strong>, strictement nécessaire à son fonctionnement. Il n'est créé que lorsque vous ouvrez le lien d'une occasion qu'on vous a partagé (ou liez un appareil) : une simple visite de la page d'accueil n'en crée aucun.",
+    "noTracking": "<strong>Aucun</strong> témoin publicitaire, de mesure d'audience, de pistage ou de réseau social.",
+    "noSale": "Aucune vente, location ni communication de vos renseignements à des fins commerciales.",
+    "noAccount": "Pas de compte ni de mot de passe : seul votre nom est demandé, le courriel est facultatif."
+  },
+  "storage": {
+    "title": "Témoins et stockage dans votre navigateur",
+    "name": "Nom",
+    "type": "Type",
+    "use": "Utilité",
+    "duration": "Durée",
+    "rows": {
+      "cookie": {
+        "type": "Témoin essentiel",
+        "use": "Reconnaître votre navigateur pour retrouver vos occasions et vos disponibilités, sans compte ni mot de passe. Il contient un identifiant aléatoire, rien d'autre. Créé à l'ouverture d'un lien d'invitation ou à la liaison d'un appareil.",
+        "duration": "Renouvelé à chaque visite (les navigateurs le limitent à environ 400 jours sans visite)"
+      },
+      "theme": {
+        "type": "Préférence (stockage local)",
+        "use": "Retenir le thème choisi (clair, sombre ou celui de l'appareil). Reste sur votre appareil.",
+        "duration": "Jusqu'à ce que vous le changiez ou effaciez les données du site"
+      },
+      "lang": {
+        "type": "Préférence (stockage local)",
+        "use": "Retenir la langue choisie (français ou anglais). Reste sur votre appareil.",
+        "duration": "Idem"
+      },
+      "orgFilter": {
+        "type": "Préférence (stockage local)",
+        "use": "Retenir le filtre par organisation de « Mes occasions ». Reste sur votre appareil.",
+        "duration": "Idem"
+      }
+    },
+    "noBanner": "Comme ces éléments sont nécessaires au service demandé ou ne servent qu'à retenir vos préférences, aucune bannière de consentement n'est affichée. L'application n'utilise aucune technologie permettant de vous localiser ou de vous profiler. Effacer les témoins de ce site vous déconnecte de votre identité : utilisez alors « Lier un cellulaire » au préalable si vous voulez la conserver sur un autre appareil."
+  },
+  "collected": {
+    "title": "Renseignements recueillis",
+    "identity": "<strong>Votre nom</strong> (obligatoire) et <strong>votre courriel</strong> (facultatif), saisis par vous.",
+    "slots": "<strong>Vos plages de disponibilité</strong> et les occasions auxquelles vous participez.",
+    "created": "Les occasions et organisations que vous créez (titre, description, journées, heures, logo).",
+    "technical": "Des renseignements techniques : l'identifiant du témoin, la date de création et de dernière visite. L'application ne conserve pas votre adresse IP."
+  },
+  "why": {
+    "title": "Pourquoi",
+    "text": "Uniquement pour faire fonctionner le service : afficher les disponibilités de chacun, trouver les moments communs, gérer les invités et les organisations, et lier vos appareils. Aucune autre utilisation n'en est faite."
+  },
+  "who": {
+    "title": "Qui peut voir vos renseignements",
+    "participants": "<strong>Les autres participants d'une occasion</strong> voient votre nom, votre courriel si vous l'avez fourni, et vos plages de disponibilité pour cette occasion. Toute personne qui reçoit le lien d'une occasion peut s'y joindre.",
+    "organizations": "<strong>Les responsables et administrateurs d'une organisation</strong> voient la liste de ses membres (nom et courriel).",
+    "operator": "<strong>Le responsable du service</strong>, pour l'exploitation technique."
+  },
+  "hosting": {
+    "title": "Hébergement et prestataire",
+    "text": "L'application est hébergée sur un serveur exploité par le responsable du service. Pour la publier sur Internet, le trafic transite par <strong>Cloudflare</strong> (entreprise établie aux États-Unis), qui assure la connexion sécurisée (HTTPS). Cloudflare traite à cette fin des données techniques de connexion, comme votre adresse IP, sans les stocker dans l'application."
+  },
+  "retention": {
+    "title": "Conservation",
+    "text": "Vos renseignements sont conservés tant que vous utilisez le service. Lorsqu'un invité est retiré d'une occasion, ses plages de disponibilité pour cette occasion sont supprimées. Vous pouvez demander en tout temps la suppression de vos renseignements (voir ci-dessous). Les codes de liaison d'appareil expirent après 10 minutes."
+  },
+  "security": {
+    "title": "Sécurité",
+    "text": "Connexion chiffrée (HTTPS), témoin inaccessible aux scripts (<code>HttpOnly</code>), codes de liaison stockés sous forme d'empreinte et valables une seule fois, serveurs isolés avec des droits minimaux."
+  },
+  "rights": {
+    "title": "Vos droits",
+    "intro": "Vous pouvez en tout temps :",
+    "correct": "<strong>consulter et corriger</strong> votre nom et votre courriel (menu de votre profil, en haut à droite) ;",
+    "access": "demander <strong>l'accès</strong> à l'ensemble des renseignements vous concernant, ou leur <strong>communication</strong> dans un format technologique structuré et couramment utilisé ;",
+    "delete": "demander leur <strong>suppression</strong> ou retirer votre consentement ;",
+    "complaintBefore": "porter plainte auprès de la",
+    "complaintLink": "Commission d'accès à l'information du Québec",
+    "complaintAfter": ".",
+    "write": "Pour exercer ces droits ou pour toute question, écrivez au responsable :"
+  },
+  "changes": {
+    "title": "Modifications",
+    "text": "Cette page peut être mise à jour ; la date en haut indique la dernière version."
+  },
+  "seeAlsoBefore": "Voir aussi les",
+  "seeAlsoLink": "conditions d'utilisation",
+  "seeAlsoAfter": "."
+}

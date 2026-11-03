@@ -10,6 +10,9 @@
   créer une occasion ou une organisation sans avoir été invité.
   Les navigateurs plafonnant la durée des cookies (400 jours pour Chrome), il est réémis à chaque appel : il
   n'expire pas tant que la personne revient.
+- **Page introuvable** : une adresse qui ne correspond à aucune page affiche une page 404 dans le cadre habituel
+  (en-tête, menu, pied de page). En production, le serveur renvoie alors aussi le statut HTTP 404 ; la liste des
+  pages est tenue à deux endroits, `frontend/src/App.svelte` (`PAGES`) et `backend/src/index.js` (`APP_PAGE`).
 - **Lier un appareil** : l'ordinateur génère un jeton aléatoire (stocké sous forme d'empreinte SHA-256, valable
   10 minutes, utilisable une fois) affiché en code QR. Le cellulaire qui l'ouvre reçoit le cookie de la même personne.
   Fusion : participations, plages (celles de l'ordinateur gagnent en cas de doublon le même jour), occasions créées

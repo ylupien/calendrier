@@ -106,7 +106,7 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 - Adaptée au cellulaire (menu compact, éditeur tactile) et à l'ordinateur.
 - **Mode sombre** : suit le thème de l'appareil par défaut ; bouton ☀️ / 🌙 / 🖥️ pour forcer clair ou sombre (mémorisé).
 - Quand une fenêtre est ouverte, la page derrière ne défile plus.
-- Les onglets ont leur adresse (`#calendrier`, `#rapport`, `/admin#comptes`…) : un rechargement garde l'onglet.
+- Les onglets ont leur adresse (`#calendrier`, `#rapport`, `/admin/comptes`, `/admin/organisations/<numéro>`…) : un rechargement garde l'onglet, et « ← » ou Précédent ramène à la liste.
 
 ---
 

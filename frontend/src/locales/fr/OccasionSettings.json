@@ -1,0 +1,13 @@
+{
+  "confirmLost_one": "{{count}} plage de disponibilité sera supprimée avec les journées retirées. Continuer ?",
+  "confirmLost_other": "{{count}} plages de disponibilité seront supprimées avec les journées retirées. Continuer ?",
+  "title": "Paramètres de l'occasion",
+  "titleLabel": "Titre",
+  "description": "Description",
+  "days": "Journées",
+  "lostDay_one": "{{count}} plage de disponibilité sera supprimée avec la journée retirée.",
+  "lostDay_other": "{{count}} plages de disponibilité seront supprimées avec la journée retirée.",
+  "lostDays_one": "{{count}} plage de disponibilité sera supprimée avec les journées retirées.",
+  "lostDays_other": "{{count}} plages de disponibilité seront supprimées avec les journées retirées.",
+  "deadline": "Date de fin de l'édition"
+}

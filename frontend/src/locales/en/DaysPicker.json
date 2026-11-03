@@ -1,0 +1,9 @@
+{
+  "prevMonth": "Previous month",
+  "nextMonth": "Next month",
+  "selectWeekday": "Select every {{weekday}} of the month",
+  "selected_one": "{{count}} day selected",
+  "selected_other": "{{count}} days selected",
+  "help": "Click or drag over the days to open",
+  "clear": "Clear all"
+}

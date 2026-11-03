@@ -2,6 +2,7 @@
   import { api } from '../lib/api.js';
   import { onMount } from 'svelte';
   import Modal from './Modal.svelte';
+  import { t } from '../lib/i18n.svelte.js';
   import OrgPicker from './OrgPicker.svelte';
   import DayHoursPicker from './DayHoursPicker.svelte';
   import DaysPicker from './DaysPicker.svelte';
@@ -41,7 +42,7 @@
 
   async function submit(e) {
     e.preventDefault();
-    if (lostSlots && !confirm(`${lostSlots} plage${lostSlots > 1 ? 's' : ''} de disponibilité ser${lostSlots > 1 ? 'ont' : 'a'} supprimée${lostSlots > 1 ? 's' : ''} avec les journées retirées. Continuer ?`)) return;
+    if (lostSlots && !confirm(t('OccasionSettings.confirmLost', { count: lostSlots }))) return;
     saving = true;
     error = '';
     try {
@@ -65,23 +66,22 @@
 
 <Modal {onclose} size="max-w-lg">
   <form class="space-y-4 p-6" onsubmit={submit}>
-    <h2 class="text-lg font-semibold text-slate-900">Paramètres de l'occasion</h2>
+    <h2 class="text-lg font-semibold text-slate-900">{t('OccasionSettings.title')}</h2>
     <OrgPicker {orgs} bind:organizationId bind:allMembers />
     <div>
-      <label class="label" for="os-title">Titre</label>
+      <label class="label" for="os-title">{t('OccasionSettings.titleLabel')}</label>
       <input id="os-title" class="input" bind:value={title} required maxlength="200" />
     </div>
     <div>
-      <label class="label" for="os-desc">Description</label>
+      <label class="label" for="os-desc">{t('OccasionSettings.description')}</label>
       <textarea id="os-desc" class="input" rows="3" bind:value={description} maxlength="5000"></textarea>
     </div>
     <div>
-      <span class="label">Journées</span>
+      <span class="label">{t('OccasionSettings.days')}</span>
       <DaysPicker bind:days />
       {#if lostSlots}
         <p class="mt-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          ⚠️ {lostSlots} plage{lostSlots > 1 ? 's' : ''} de disponibilité ser{lostSlots > 1 ? 'ont' : 'a'} supprimée{lostSlots > 1 ? 's' : ''}
-          avec {removedDays.length > 1 ? 'les journées retirées' : 'la journée retirée'}.
+          ⚠️ {t(removedDays.length > 1 ? 'OccasionSettings.lostDays' : 'OccasionSettings.lostDay', { count: lostSlots })}
         </p>
       {/if}
     </div>
@@ -89,7 +89,7 @@
     <div class="rounded-xl bg-slate-50 p-3">
       <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
         <input type="checkbox" class="h-4 w-4 rounded accent-indigo-600" bind:checked={withDeadline} />
-        Date de fin de l'édition
+        {t('OccasionSettings.deadline')}
       </label>
       {#if withDeadline}
         <input type="datetime-local" class="input mt-2" bind:value={editDeadline} required />
@@ -97,8 +97,8 @@
     </div>
     {#if error}<p class="text-sm text-rose-600">{error}</p>{/if}
     <div class="flex justify-end gap-2 pt-2">
-      <button type="button" class="btn-ghost" onclick={onclose}>Annuler</button>
-      <button class="btn-primary" disabled={saving || !days.length}>Enregistrer</button>
+      <button type="button" class="btn-ghost" onclick={onclose}>{t('common.cancel')}</button>
+      <button class="btn-primary" disabled={saving || !days.length}>{t('common.save')}</button>
     </div>
   </form>
 </Modal>

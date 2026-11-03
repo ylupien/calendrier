@@ -1,0 +1,39 @@
+{
+  "presets": {
+    "morning": "Morning",
+    "afternoon": "Afternoon",
+    "evening": "Evening",
+    "day": "Full day"
+  },
+  "rows": {
+    "am": "Morning",
+    "pm": "Afternoon"
+  },
+  "inProgress": "{{from}} – {{to}} (in progress)",
+  "emptyRowPhone": "Tap or drag here",
+  "emptyRow": "Click or drag here to add a range",
+  "you": "You",
+  "slotTitle": "Click to edit · drag to move · stretch the edges · drag off the row to delete",
+  "previousDay": "Previous day",
+  "nextDay": "Next day",
+  "newRange": "New range",
+  "phoneHelp": "Tap or drag to create · tap a range, then pull its edges.",
+  "mine": "My availability",
+  "help": "You can have several ranges per day. Click or drag on a free area of your row to create one. Click a range to edit it, stretch its edges to resize it, drag it off the row to delete it.",
+  "selected": "Selected range:",
+  "deleteRange": "Delete the range",
+  "selectToDelete": "Select a range to delete it.",
+  "newRangeTitle": "Choose the hours of a new range",
+  "noRoom": "No free time left on this day",
+  "quickAdd": "Quick add:",
+  "addThis": "Add this range",
+  "overlapsShort": "Overlaps one of your ranges",
+  "overlaps": "This range overlaps one of your ranges.",
+  "start": "Start time",
+  "end": "End time",
+  "add": "Add",
+  "others": "The other guests",
+  "dayAvailability": "Availability for the day",
+  "nobodyElse": "Nobody else has given their availability for this day yet.",
+  "nobody": "Nobody has given their availability for this day."
+}

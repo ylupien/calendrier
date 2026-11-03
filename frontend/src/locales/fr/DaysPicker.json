@@ -1,0 +1,9 @@
+{
+  "prevMonth": "Mois précédent",
+  "nextMonth": "Mois suivant",
+  "selectWeekday": "Sélectionner tous les {{weekday}} du mois",
+  "selected_one": "{{count}} journée sélectionnée",
+  "selected_other": "{{count}} journées sélectionnées",
+  "help": "Cliquez ou glissez sur les journées à ouvrir",
+  "clear": "Tout effacer"
+}

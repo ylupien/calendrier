@@ -1,0 +1,7 @@
+{
+  "title": "Give ownership",
+  "text": "<strong>{{name}}</strong> will become the owner of “<strong>{{title}}</strong>”. They will be able to change its settings, archive it and manage the guests.",
+  "warnOrg": "You will no longer be the owner: you will not be able to change the settings or archive the occasion, and you will manage the guests only if you administer the organization.",
+  "warn": "You will no longer be the owner and will not be able to manage this occasion. Only this person will be able to give it back to you.",
+  "confirm": "Give ownership"
+}

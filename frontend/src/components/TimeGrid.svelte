@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { minToTime } from '../lib/dates.js';
   import { initials } from '../lib/colors.js';
+  import { t, i18n } from '../lib/i18n.svelte.js';
 
   // columns: [{ key, day, title, subtitle?, color?, today?, enabled, lanes: [{ userId, slots, drafts }] }]
   // from / to: hours of the day shown (minutes), set per occasion.
@@ -25,7 +26,10 @@
   const inView = (s) => s.end > from && s.start < to;
   const top = (m) => ((clip(m) - from) / 60) * HOUR;
   // Compact time label ("9h–10h30") so it fits narrow lanes.
-  const short = (m) => `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}`;
+  const short = (m) => {
+    const mm = m % 60 ? String(m % 60).padStart(2, '0') : '';
+    return i18n.lang === 'en' ? `${Math.floor(m / 60)}${mm ? `:${mm}` : ''}` : `${Math.floor(m / 60)}h${mm}`;
+  };
   const height = (s, e) => Math.max(((clip(e) - clip(s)) / 60) * HOUR, 14);
 
   // Narrow bars: one fixed-width lane per person (at most 48 px), the group centered in the day.
@@ -68,7 +72,7 @@
     <div class="flex border-b border-slate-200 bg-slate-50">
       <div class="w-12 shrink-0"></div>
       {#if overlap}
-        <div class="w-20 shrink-0 border-l border-slate-200 px-1 py-2 text-center text-xs font-semibold text-emerald-700">Commun</div>
+        <div class="w-20 shrink-0 border-l border-slate-200 px-1 py-2 text-center text-xs font-semibold text-emerald-700">{t('TimeGrid.common')}</div>
       {/if}
       {#each columns as col (col.key)}
         <div class="flex-1 border-l border-slate-200 px-1 py-2 text-center {showNames ? 'min-w-28' : ''} {col.enabled ? '' : 'bg-slate-100 text-slate-300 dark:bg-slate-50'}">
@@ -105,7 +109,7 @@
               <div
                 class="absolute inset-x-1 flex items-center justify-center rounded text-[11px] font-semibold text-white"
                 style="top:{top(seg.start)}px;height:{height(seg.start, seg.end)}px;background:rgba(5,150,105,{0.25 + 0.75 * (seg.count / Math.max(total, 1))})"
-                title="{seg.count}/{total} disponibles de {minToTime(seg.start)} à {minToTime(seg.end)}"
+                title={t('TimeGrid.coverage', { count: seg.count, total, from: minToTime(seg.start), to: minToTime(seg.end) })}
               >{seg.count}/{total}</div>
             {/each}
           </div>
@@ -145,7 +149,7 @@
                 <div
                   class="pointer-events-none absolute flex animate-pulse items-start justify-center {dimmed(lane.userId) ? 'opacity-25 grayscale' : ''} overflow-hidden rounded-md border-2 border-dashed pt-0.5 text-[10px] font-semibold"
                   style="top:{top(d.start)}px;height:{height(d.start, d.end)}px;{laneBox(li, n)};border-color:{color};color:{color};background:{color}11"
-                  title="{nameOf(lane.userId)} est en train de modifier"
+                  title={t('TimeGrid.editing', { name: nameOf(lane.userId) })}
                 >✎ {initials(nameOf(lane.userId))}</div>
               {/each}
             {/each}

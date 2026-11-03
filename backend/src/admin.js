@@ -4,18 +4,19 @@ import { pool } from './db.js';
 import { HttpError, cleanText } from './http.js';
 import { hashPassword } from './auth.js';
 import { EMAIL_RE, assertLoginEmailFree, parsePassword } from './account.js';
-import { joinOrganization, logoUrl } from './organizations.js';
+import { joinOrganization, shownLogo, shownLogoColumns } from './organizations.js';
 import { mergeUsers, createLinkToken } from './link.js';
 import { roomOf } from './socket.js';
 
 // A sign-in link made by the administrator stays valid one week (a QR code: 10 minutes).
 const SIGN_IN_LINK_MINUTES = 7 * 24 * 60;
 
-const userPayload = (u) => ({ id: u.id, name: u.name, email: u.email });
+const userPayload = (u) => ({ id: u.id, name: u.name, email: u.email, active: !!Number(u.active) });
 
-function parseId(value, what = 'Identifiant') {
+// what: kind of identifier, for the error message (errors.invalidId.<what>).
+function parseId(value, what = 'id') {
   const id = Number(value);
-  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, `${what} invalide.`);
+  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, `invalidId.${what}`);
   return id;
 }
 
@@ -27,7 +28,7 @@ async function loadUser(id) {
      FROM users WHERE id = ?`,
     [id],
   );
-  if (!rows.length) throw new HttpError(404, 'Compte introuvable.');
+  if (!rows.length) throw new HttpError(404, 'accountNotFound');
   return rows[0];
 }
 
@@ -62,7 +63,7 @@ async function listUsers(where = '1 = 1', params = []) {
 
 async function userDetail(id) {
   const [user] = await listUsers('u.id = ?', [id]);
-  if (!user) throw new HttpError(404, 'Compte introuvable.');
+  if (!user) throw new HttpError(404, 'accountNotFound');
   const [organizations] = await pool.query(
     `SELECT g.id, g.name, g.owner_id = m.user_id AS is_owner, m.is_admin, m.removed_at
      FROM organization_members m JOIN organizations g ON g.id = m.organization_id
@@ -104,11 +105,11 @@ async function parseIdentity(body, current = null) {
   const email = body?.email !== undefined ? cleanText(body.email, 255).toLowerCase() || null : current?.email ?? null;
   // password: a string sets it, null removes it, undefined keeps it.
   const password = body?.password === null || body?.password === undefined ? body?.password : parsePassword(body.password);
-  if (!name) throw new HttpError(400, 'Le nom est requis.');
-  if (email && !EMAIL_RE.test(email)) throw new HttpError(400, 'Courriel invalide.');
+  if (!name) throw new HttpError(400, 'nameRequired');
+  if (email && !EMAIL_RE.test(email)) throw new HttpError(400, 'invalidEmail');
   const willHavePassword = password === undefined ? !!current?.has_password : password !== null;
   if (willHavePassword) {
-    if (!email) throw new HttpError(400, 'Un courriel est requis pour se connecter avec un mot de passe.');
+    if (!email) throw new HttpError(400, 'emailRequiredForPassword');
     await assertLoginEmailFree(email, current?.id ?? 0);
   }
   return { name, email, password };
@@ -117,14 +118,14 @@ async function parseIdentity(body, current = null) {
 export function createAdminRoutes(io) {
   const r = Router();
 
-  r.use((req, _res, next) => {
-    if (!req.user?.isSiteAdmin) throw new HttpError(403, 'Réservé à l’administrateur du site.');
+  r.use('/admin', (req, _res, next) => {
+    if (!req.user?.isSiteAdmin) throw new HttpError(403, 'siteAdminOnly');
     next();
   });
 
   /** Shows the account in the occasions it belongs to (new name, new guest). */
   async function broadcastUser(userId) {
-    const [[u]] = await pool.query('SELECT id, name, email FROM users WHERE id = ?', [userId]);
+    const [[u]] = await pool.query('SELECT id, name, email, activated_at IS NOT NULL AS active FROM users WHERE id = ?', [userId]);
     if (!u?.name) return;
     const [occ] = await pool.query(
       `SELECT o.slug FROM participants p JOIN occasions o ON o.id = p.occasion_id
@@ -137,7 +138,7 @@ export function createAdminRoutes(io) {
   /** Member of the organization again (or for the first time), with its "all members" occasions. */
   async function addToOrganization(userId, organizationId) {
     const [[org]] = await pool.query('SELECT id FROM organizations WHERE id = ?', [organizationId]);
-    if (!org) throw new HttpError(404, 'Organisation introuvable.');
+    if (!org) throw new HttpError(404, 'organizationNotFound');
     await pool.query(
       'UPDATE organization_members SET removed_at = NULL WHERE organization_id = ? AND user_id = ?',
       [organizationId, userId],
@@ -148,7 +149,7 @@ export function createAdminRoutes(io) {
   /** Guest of the occasion again (or for the first time), and member of its organization. */
   async function addToOccasion(userId, occasionId) {
     const [[o]] = await pool.query('SELECT id, organization_id FROM occasions WHERE id = ?', [occasionId]);
-    if (!o) throw new HttpError(404, 'Occasion introuvable.');
+    if (!o) throw new HttpError(404, 'occasionNotFound');
     await pool.query(
       `INSERT INTO participants (occasion_id, user_id) VALUES (?, ?)
        ON DUPLICATE KEY UPDATE removed_at = NULL`,
@@ -189,7 +190,7 @@ export function createAdminRoutes(io) {
     let isAdmin = !!current.is_site_admin;
     if (req.body?.isSiteAdmin !== undefined) {
       if (current.id === req.user.id && !req.body.isSiteAdmin) {
-        throw new HttpError(400, 'Vous ne pouvez pas retirer vos propres droits d’administrateur.');
+        throw new HttpError(400, 'ownAdminRights');
       }
       isAdmin = !!req.body.isSiteAdmin;
     }
@@ -213,16 +214,16 @@ export function createAdminRoutes(io) {
 
   r.post('/admin/users/:id/organizations', async (req, res) => {
     const userId = (await loadUser(parseId(req.params.id))).id;
-    await addToOrganization(userId, parseId(req.body?.organizationId, 'Organisation'));
+    await addToOrganization(userId, parseId(req.body?.organizationId, 'organization'));
     await broadcastUser(userId);
     res.json(await userDetail(userId));
   });
 
   r.delete('/admin/users/:id/organizations/:orgId', async (req, res) => {
     const userId = parseId(req.params.id);
-    const orgId = parseId(req.params.orgId, 'Organisation');
+    const orgId = parseId(req.params.orgId, 'organization');
     const [[org]] = await pool.query('SELECT owner_id FROM organizations WHERE id = ?', [orgId]);
-    if (org?.owner_id === userId) throw new HttpError(400, 'Le responsable ne peut pas être retiré de son organisation.');
+    if (org?.owner_id === userId) throw new HttpError(400, 'ownerNotRemovableFromOrg');
     await pool.query(
       `UPDATE organization_members SET removed_at = NOW(), can_create = 0, is_admin = 0
        WHERE organization_id = ? AND user_id = ? AND removed_at IS NULL`,
@@ -233,7 +234,7 @@ export function createAdminRoutes(io) {
 
   r.post('/admin/users/:id/occasions', async (req, res) => {
     const userId = (await loadUser(parseId(req.params.id))).id;
-    await addToOccasion(userId, parseId(req.body?.occasionId, 'Occasion'));
+    await addToOccasion(userId, parseId(req.body?.occasionId, 'occasion'));
     await broadcastUser(userId);
     res.json(await userDetail(userId));
   });
@@ -242,10 +243,10 @@ export function createAdminRoutes(io) {
   r.delete('/admin/users/:id/occasions/:occasionId', async (req, res) => {
     const userId = parseId(req.params.id);
     const [[o]] = await pool.query('SELECT id, slug, creator_id FROM occasions WHERE id = ?', [
-      parseId(req.params.occasionId, 'Occasion'),
+      parseId(req.params.occasionId, 'occasion'),
     ]);
-    if (!o) throw new HttpError(404, 'Occasion introuvable.');
-    if (o.creator_id === userId) throw new HttpError(400, "Le créateur de l'occasion ne peut pas être retiré.");
+    if (!o) throw new HttpError(404, 'occasionNotFound');
+    if (o.creator_id === userId) throw new HttpError(400, 'creatorNotRemovable');
     await pool.query(
       'UPDATE participants SET removed_at = NOW() WHERE occasion_id = ? AND user_id = ? AND removed_at IS NULL',
       [o.id, userId],
@@ -262,9 +263,9 @@ export function createAdminRoutes(io) {
    */
   r.post('/admin/users/:id/merge', async (req, res) => {
     const from = await loadUser(parseId(req.params.id));
-    const into = await loadUser(parseId(req.body?.intoUserId, 'Compte cible'));
-    if (from.id === into.id) throw new HttpError(400, 'Choisissez un autre compte.');
-    if (from.id === req.user.id) throw new HttpError(400, 'Vous ne pouvez pas fusionner votre propre compte.');
+    const into = await loadUser(parseId(req.body?.intoUserId, 'target'));
+    if (from.id === into.id) throw new HttpError(400, 'chooseOtherAccount');
+    if (from.id === req.user.id) throw new HttpError(400, 'mergeOwnAccount');
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
@@ -283,10 +284,10 @@ export function createAdminRoutes(io) {
   /** Deletes an account that owns nothing (its ranges and memberships go with it). */
   r.delete('/admin/users/:id', async (req, res) => {
     const [user] = await listUsers('u.id = ?', [parseId(req.params.id)]);
-    if (!user) throw new HttpError(404, 'Compte introuvable.');
-    if (user.id === req.user.id) throw new HttpError(400, 'Vous ne pouvez pas supprimer votre propre compte.');
+    if (!user) throw new HttpError(404, 'accountNotFound');
+    if (user.id === req.user.id) throw new HttpError(400, 'deleteOwnAccount');
     if (user.ownedCount) {
-      throw new HttpError(400, 'Ce compte possède des occasions ou des organisations : transférez-les ou fusionnez le compte.');
+      throw new HttpError(400, 'accountOwnsThings');
     }
     const [occ] = await pool.query(
       `SELECT o.slug FROM participants p JOIN occasions o ON o.id = p.occasion_id
@@ -302,10 +303,11 @@ export function createAdminRoutes(io) {
 
   r.get('/admin/organizations', async (_req, res) => {
     const [rows] = await pool.query(
-      `SELECT g.id, g.name, g.mode, g.logo_mime, g.logo_version, g.logo_dark_bg, u.name AS owner_name,
+      `SELECT g.id, g.name, g.mode, ${shownLogoColumns('gl')}, u.name AS owner_name,
          (SELECT COUNT(*) FROM organization_members m WHERE m.organization_id = g.id AND m.removed_at IS NULL) AS member_count,
          (SELECT COUNT(*) FROM occasions o WHERE o.organization_id = g.id) AS occasion_count
        FROM organizations g JOIN users u ON u.id = g.owner_id
+       LEFT JOIN logos gl ON gl.id = g.logo_id
        ORDER BY g.name`,
     );
     res.json(
@@ -313,8 +315,7 @@ export function createAdminRoutes(io) {
         id: g.id,
         name: g.name,
         mode: g.mode,
-        logoUrl: logoUrl(g.id, g.logo_mime, g.logo_version),
-        logoDarkBg: !!g.logo_dark_bg,
+        ...shownLogo(g),
         ownerName: g.owner_name,
         memberCount: Number(g.member_count),
         occasionCount: Number(g.occasion_count),
@@ -351,8 +352,8 @@ export function createAdminRoutes(io) {
 
   /** Deletes an occasion with its days, guests and availabilities; open pages are told right away. */
   r.delete('/admin/occasions/:id', async (req, res) => {
-    const [[o]] = await pool.query('SELECT id, slug FROM occasions WHERE id = ?', [parseId(req.params.id, 'Occasion')]);
-    if (!o) throw new HttpError(404, 'Occasion introuvable.');
+    const [[o]] = await pool.query('SELECT id, slug FROM occasions WHERE id = ?', [parseId(req.params.id, 'occasion')]);
+    if (!o) throw new HttpError(404, 'occasionNotFound');
     await pool.query('DELETE FROM occasions WHERE id = ?', [o.id]);
     io.to(roomOf(o.slug)).emit('occasion:deleted', { slug: o.slug });
     res.json({ ok: true });

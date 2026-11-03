@@ -1,0 +1,14 @@
+{
+  "selectAll": "Tout sélectionner",
+  "title": "Ajouter des invités",
+  "allInvited": "Tous les membres de l'organisation sont déjà invités.",
+  "nobody": "Personne à ajouter. Pour inviter quelqu'un, partagez le lien de l'occasion ou invitez-le par courriel.",
+  "membersOf": "Membres de {{name}}",
+  "members": "Membres",
+  "removed": "Invités retirés",
+  "removedHint": "Ils ont été retirés de cette occasion ; les ajouter les réintègre.",
+  "adding": "Ajout…",
+  "add": "Ajouter",
+  "addCount_one": "Ajouter ({{count}})",
+  "addCount_other": "Ajouter ({{count}})"
+}

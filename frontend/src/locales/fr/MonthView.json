@@ -1,0 +1,7 @@
+{
+  "available_one": "{{count}} personne disponible",
+  "available_other": "{{count}} personnes disponibles",
+  "others_one": "+{{count}} autre",
+  "others_other": "+{{count}} autres",
+  "editing": "{{name}} modifie cette journée"
+}

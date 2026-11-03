@@ -1,0 +1,16 @@
+{
+  "title": "Se connecter",
+  "subtitle": "Retrouvez votre compte sur cet appareil, avec le courriel indiqué dans votre profil.",
+  "currentAccount": "Cet appareil utilise en ce moment le compte de <strong>{{name}}</strong> : il passera au compte auquel vous vous connectez.",
+  "withPassword": "🔑 Avec mon mot de passe",
+  "withPasswordHelp": "Celui choisi dans « Mon profil », ou reçu de l'organisateur.",
+  "signingIn": "Connexion…",
+  "noPassword": "✉️ Pas de mot de passe ?",
+  "noPasswordHelp": "Recevez par courriel un lien qui connecte cet appareil à votre compte. Il est valide quelques minutes, une seule fois.",
+  "sent": "📬 Si un compte utilise <strong>{{email}}</strong>, un lien de connexion vient d'y être envoyé. Ouvrez-le <strong>sur cet appareil</strong> ; il est valide {{minutes}} minutes.",
+  "nothingReceived": "Rien reçu ? Regardez dans les courriels indésirables.",
+  "sending": "Envoi…",
+  "resend": "Renvoyer le lien",
+  "sendLink": "Recevoir un lien par courriel",
+  "backHome": "Retour à l'accueil"
+}

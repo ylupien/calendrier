@@ -1,5 +1,6 @@
 <script>
-  import { monthGrid, toDay, parseDay, addMonths, fmtMonth, todayStr, WEEKDAYS } from '../lib/dates.js';
+  import { monthGrid, toDay, parseDay, addMonths, fmtMonth, todayStr, weekdayNames } from '../lib/dates.js';
+  import { t } from '../lib/i18n.svelte.js';
 
   // Days open for the occasion, chosen one by one. Click or drag to (de)select, click a weekday
   // header to toggle that weekday for the whole month. Past days cannot be added (one already
@@ -60,17 +61,17 @@
 
 <div class="rounded-xl border border-slate-200 bg-surface p-3">
   <div class="mb-2 flex items-center justify-between">
-    <button type="button" class="btn-ghost px-2.5 text-lg leading-none" onclick={() => (month = addMonths(month, -1))} aria-label="Mois précédent">‹</button>
+    <button type="button" class="btn-ghost px-2.5 text-lg leading-none" onclick={() => (month = addMonths(month, -1))} aria-label={t('DaysPicker.prevMonth')}>‹</button>
     <span class="text-sm font-semibold text-slate-800 first-letter:uppercase">{fmtMonth(month)}</span>
-    <button type="button" class="btn-ghost px-2.5 text-lg leading-none" onclick={() => (month = addMonths(month, 1))} aria-label="Mois suivant">›</button>
+    <button type="button" class="btn-ghost px-2.5 text-lg leading-none" onclick={() => (month = addMonths(month, 1))} aria-label={t('DaysPicker.nextMonth')}>›</button>
   </div>
 
   <div class="grid grid-cols-7 text-center">
-    {#each WEEKDAYS as w, i (w)}
+    {#each weekdayNames() as w, i (w)}
       <button
         type="button"
         class="rounded-md py-1 text-[11px] font-medium uppercase text-slate-500 hover:bg-slate-100 hover:text-indigo-600"
-        title="Sélectionner tous les {w} du mois"
+        title={t('DaysPicker.selectWeekday', { weekday: w })}
         onclick={() => toggleWeekday(i)}
       >{w}</button>
     {/each}
@@ -100,10 +101,10 @@
 
   <div class="mt-2 flex items-center justify-between text-xs">
     <span class={days.length ? 'font-medium text-indigo-700' : 'text-slate-500'}>
-      {days.length ? `${days.length} journée${days.length > 1 ? 's' : ''} sélectionnée${days.length > 1 ? 's' : ''}` : 'Cliquez ou glissez sur les journées à ouvrir'}
+      {days.length ? t('DaysPicker.selected', { count: days.length }) : t('DaysPicker.help')}
     </span>
     {#if days.length}
-      <button type="button" class="text-slate-500 hover:text-rose-600" onclick={() => (days = [])}>Tout effacer</button>
+      <button type="button" class="text-slate-500 hover:text-rose-600" onclick={() => (days = [])}>{t('DaysPicker.clear')}</button>
     {/if}
   </div>
 </div>

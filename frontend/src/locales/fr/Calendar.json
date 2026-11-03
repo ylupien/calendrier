@@ -1,0 +1,16 @@
+{
+  "views": {
+    "day": "Jour",
+    "week": "Semaine",
+    "month": "Mois"
+  },
+  "previous": "Précédent",
+  "next": "Suivant",
+  "today": "Aujourd'hui",
+  "noGuests": "Aucun invité pour l'instant.",
+  "notInOccasion": "Cette journée ne fait pas partie de l'occasion.",
+  "previousDay": "Journée précédente",
+  "nextDay": "Journée suivante",
+  "clickHint": "Cliquez sur une journée pour ajouter vos disponibilités.",
+  "readOnly": "Lecture seule."
+}

@@ -1,0 +1,13 @@
+{
+  "confirmLost_one": "{{count}} availability range will be deleted with the removed days. Continue?",
+  "confirmLost_other": "{{count}} availability ranges will be deleted with the removed days. Continue?",
+  "title": "Occasion settings",
+  "titleLabel": "Title",
+  "description": "Description",
+  "days": "Days",
+  "lostDay_one": "{{count}} availability range will be deleted with the removed day.",
+  "lostDay_other": "{{count}} availability ranges will be deleted with the removed day.",
+  "lostDays_one": "{{count}} availability range will be deleted with the removed days.",
+  "lostDays_other": "{{count}} availability ranges will be deleted with the removed days.",
+  "deadline": "End of editing"
+}

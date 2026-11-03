@@ -3,6 +3,7 @@
   import { fmtLong, minToTime } from '../lib/dates.js';
   import Modal from './Modal.svelte';
   import Chevron from './Chevron.svelte';
+  import { t, i18n } from '../lib/i18n.svelte.js';
 
   let {
     day, slots, drafts, participants, colors, me, editable, dayStart = 0, dayEnd = 1440,
@@ -15,12 +16,12 @@
   const to = $derived(dayEnd);
   const span = $derived(dayEnd - dayStart);
   const OPTIONS = $derived(Array.from({ length: (dayEnd - dayStart) / STEP + 1 }, (_, i) => dayStart + i * STEP));
-  const PRESETS = [
-    { label: 'Matin', start: 8 * 60, end: 12 * 60 },
-    { label: 'Après-midi', start: 13 * 60, end: 17 * 60 },
-    { label: 'Soirée', start: 18 * 60, end: 22 * 60 },
-    { label: 'Journée', start: 8 * 60, end: 17 * 60 },
-  ];
+  const PRESETS = $derived([
+    { key: 'morning', label: t('DayOverlay.presets.morning'), start: 8 * 60, end: 12 * 60 },
+    { key: 'afternoon', label: t('DayOverlay.presets.afternoon'), start: 13 * 60, end: 17 * 60 },
+    { key: 'evening', label: t('DayOverlay.presets.evening'), start: 18 * 60, end: 22 * 60 },
+    { key: 'day', label: t('DayOverlay.presets.day'), start: 8 * 60, end: 17 * 60 },
+  ]);
   // Scale labels: every hour for a short day, every 2 hours otherwise (in minutes).
   const TICKS = $derived.by(() => {
     const step = dayEnd - dayStart > 12 * 60 ? 120 : 60;
@@ -48,8 +49,8 @@
   const rows = $derived.by(() => {
     if (!mobile || from >= NOON || to <= NOON) return [{ key: 'day', label: '', from, to }];
     return [
-      { key: 'am', label: 'Avant-midi', from, to: NOON },
-      { key: 'pm', label: 'Après-midi', from: NOON, to },
+      { key: 'am', label: t('DayOverlay.rows.am'), from, to: NOON },
+      { key: 'pm', label: t('DayOverlay.rows.pm'), from: NOON, to },
     ];
   });
   let tracks = $state([]); // one element per row
@@ -81,7 +82,10 @@
   // Ranges are drawn with their owner's color at 75% opacity.
   const fill = (c) => `${c}BF`;
   // Short label for narrow ranges: "9h–10h30" instead of "09:00–10:30".
-  const short = (m) => `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, '0') : ''}`;
+  const short = (m) => {
+    const mm = m % 60 ? String(m % 60).padStart(2, '0') : '';
+    return i18n.lang === 'en' ? `${Math.floor(m / 60)}${mm ? `:${mm}` : ''}` : `${Math.floor(m / 60)}h${mm}`;
+  };
   const label = (v) => (v.end - v.start >= 150 ? `${minToTime(v.start)}–${minToTime(v.end)}` : `${short(v.start)}–${short(v.end)}`);
 
   /** Free interval around `at`, ignoring range `excludeId`: ranges may not overlap. */
@@ -356,7 +360,7 @@
         <div
           class="absolute inset-y-0.5 flex animate-pulse items-center justify-center overflow-hidden rounded-md border-2 border-dashed text-[10px] font-semibold"
           style="{hbox(ghost.start, ghost.end)};border-color:{c};background:{c}33;color:{c}"
-          title="{minToTime(ghost.start)} – {minToTime(ghost.end)} (en cours)"
+          title={t('DayOverlay.inProgress', { from: minToTime(ghost.start), to: minToTime(ghost.end) })}
         ><span class="truncate px-1.5">{label(ghost)}</span></div>
       {/if}
     </div>
@@ -394,7 +398,7 @@
           </div>
         {/if}
         <div class="flex items-center gap-3">
-          {#if !mobile}<span class="w-24 shrink-0 text-right text-xs font-semibold text-indigo-700">Vous</span>{/if}
+          {#if !mobile}<span class="w-24 shrink-0 text-right text-xs font-semibold text-indigo-700">{t('DayOverlay.you')}</span>{/if}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             bind:this={tracks[ri]}
@@ -404,7 +408,7 @@
           >
             {#if !mySlots.length && !drag && !pending}
               <span class="pointer-events-none absolute inset-0 flex items-center justify-center px-2 text-center text-xs text-indigo-500/80">
-                {mobile ? 'Touchez ou glissez ici' : 'Cliquez ou glissez ici pour ajouter une plage'}
+                {mobile ? t('DayOverlay.emptyRowPhone') : t('DayOverlay.emptyRow')}
               </span>
             {/if}
             {#each mySlots.filter((x) => inRow(row, shown(x))) as s (s.id)}
@@ -421,10 +425,10 @@
                   {out ? 'opacity-40' : ''}
                   {hasStart ? '' : 'rounded-l-none'} {hasEnd ? '' : 'rounded-r-none'}"
                 style="{rbox(row, v.start, v.end)};background:{out ? '#e11d48' : fill(color)}"
-                title="Cliquez pour modifier · glissez pour déplacer · étirez les bords · glissez hors de la ligne pour supprimer"
+                title={t('DayOverlay.slotTitle')}
                 onpointerdown={(e) => onSlotDown(e, s, 'move')}
               >
-                <span class="pointer-events-none truncate px-2 {v.end - v.start < 150 ? 'text-[10px] tracking-tight' : ''}">{out ? 'Supprimer' : label(v)}</span>
+                <span class="pointer-events-none truncate px-2 {v.end - v.start < 150 ? 'text-[10px] tracking-tight' : ''}">{out ? t('common.delete') : label(v)}</span>
                 {#if hasStart}
                   <!-- Start handle (wider hit area on a phone) -->
                   <span class="absolute inset-y-0 cursor-ew-resize hover:bg-black/20 {mobile ? '-left-3 w-7' : 'left-0 w-2.5'}" onpointerdown={(e) => onSlotDown(e, s, 'start')}>
@@ -452,7 +456,7 @@
                   class="pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded-md text-[11px] font-medium text-white shadow-sm {out ? 'opacity-40' : ''}"
                   style="{rbox(row, p.start, p.end)};background:{out ? '#e11d48' : fill(color)}"
                 >
-                  <span class="truncate px-1.5 {p.end - p.start < 150 ? 'text-[10px] tracking-tight' : ''}">{out ? 'Annuler' : label(p)}</span>
+                  <span class="truncate px-1.5 {p.end - p.start < 150 ? 'text-[10px] tracking-tight' : ''}">{out ? t('common.cancel') : label(p)}</span>
                 </div>
               {/if}
             {/if}
@@ -468,7 +472,7 @@
   <div class="select-none space-y-2" style="--hours:{span / 60}">
     {@render scale()}
     {#each others as row (row.user.id)}
-      {@render readonlyRow(row.user.id === me?.id ? 'Vous' : row.user.name, row.slots, colors.get(row.user.id), row.ghost)}
+      {@render readonlyRow(row.user.id === me?.id ? t('DayOverlay.you') : row.user.name, row.slots, colors.get(row.user.id), row.ghost)}
     {/each}
   </div>
 {/snippet}
@@ -477,7 +481,7 @@
 <Modal {onclose} size="max-w-4xl" topOnPhone>
   <!-- Stays visible at the top while the window scrolls -->
   <div class="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-slate-200 bg-surface px-5 py-4">
-    <button class="btn-icon" disabled={!prevDay} onclick={() => onchangeday(prevDay)} aria-label="Jour précédent" title="Journée précédente"><Chevron dir="left" /></button>
+    <button class="btn-icon" disabled={!prevDay} onclick={() => onchangeday(prevDay)} aria-label={t('DayOverlay.previousDay')} title={t('DayOverlay.previousDay')}><Chevron dir="left" /></button>
     <h2 class="flex min-w-0 items-center justify-center gap-2 text-base font-semibold text-slate-900">
       <!-- Clock: this window edits the hours of the day -->
       <svg class="h-5 w-5 shrink-0 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -486,7 +490,7 @@
       <span class="text-center first-letter:uppercase">{fmtLong(day)}</span>
     </h2>
     <div class="flex items-center gap-1">
-      <button class="btn-icon" disabled={!nextDay} onclick={() => onchangeday(nextDay)} aria-label="Jour suivant" title="Journée suivante"><Chevron dir="right" /></button>
+      <button class="btn-icon" disabled={!nextDay} onclick={() => onchangeday(nextDay)} aria-label={t('DayOverlay.nextDay')} title={t('DayOverlay.nextDay')}><Chevron dir="right" /></button>
     </div>
   </div>
 
@@ -497,42 +501,41 @@
           <!-- Phone: as few controls as possible so the whole day stays visible.
                Fixed layout: selecting a range must not move the rows under the finger. -->
           <div class="grid grid-cols-2 gap-2">
-            <button class="btn-primary whitespace-nowrap px-2 py-2" onclick={openNewRange}>＋ Nouvelle plage</button>
+            <button class="btn-primary whitespace-nowrap px-2 py-2" onclick={openNewRange}>＋ {t('DayOverlay.newRange')}</button>
             <button class="btn border border-rose-200 bg-surface py-2 text-rose-600 disabled:border-slate-200 disabled:text-slate-400"
-              disabled={!selected} onclick={() => remove(selected)}>Supprimer</button>
+              disabled={!selected} onclick={() => remove(selected)}>{t('common.delete')}</button>
           </div>
-          <p class="mt-1.5 text-center text-xs text-slate-500">Touchez ou glissez pour créer · touchez une plage puis tirez ses bords.</p>
+          <p class="mt-1.5 text-center text-xs text-slate-500">{t('DayOverlay.phoneHelp')}</p>
         {:else}
-        <h3 class="text-sm font-semibold text-slate-800">Mes disponibilités</h3>
+        <h3 class="text-sm font-semibold text-slate-800">{t('DayOverlay.mine')}</h3>
         <p class="mt-0.5 text-xs text-slate-500">
-          Vous pouvez avoir plusieurs plages par jour. Cliquez ou glissez sur une zone libre de votre ligne pour en créer une.
-          Cliquez une plage pour la modifier, étirez ses bords pour la redimensionner, glissez-la hors de la ligne pour la supprimer.
+          {t('DayOverlay.help')}
         </p>
 
         <div class="mt-3 flex flex-wrap items-center gap-3 sm:mt-4">
           {#if selected}
             {@const v = shown(selected)}
-            <span class="text-sm text-slate-700">Plage sélectionnée : <strong>{minToTime(v.start)} – {minToTime(v.end)}</strong></span>
-            <button class="btn px-2 text-rose-600 hover:bg-rose-50" onclick={() => remove(selected)}>Supprimer la plage</button>
+            <span class="text-sm text-slate-700">{t('DayOverlay.selected')} <strong>{minToTime(v.start)} – {minToTime(v.end)}</strong></span>
+            <button class="btn px-2 text-rose-600 hover:bg-rose-50" onclick={() => remove(selected)}>{t('DayOverlay.deleteRange')}</button>
           {:else}
-            <p class="text-xs text-slate-500">Sélectionnez une plage pour la supprimer.</p>
+            <p class="text-xs text-slate-500">{t('DayOverlay.selectToDelete')}</p>
           {/if}
           <button
             class="btn-primary ml-auto"
             disabled={!spot}
-            title={spot ? 'Choisir les heures d’une nouvelle plage' : 'Plus de place libre dans cette journée'}
+            title={spot ? t('DayOverlay.newRangeTitle') : t('DayOverlay.noRoom')}
             onclick={openNewRange}
-          >＋ Nouvelle plage</button>
+          >＋ {t('DayOverlay.newRange')}</button>
         </div>
 
         <div class="-mx-3 mt-3 flex items-center gap-1.5 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
-          <span class="shrink-0 text-xs text-slate-500">Ajout rapide :</span>
-          {#each presets as p (p.label)}
+          <span class="shrink-0 text-xs text-slate-500">{t('DayOverlay.quickAdd')}</span>
+          {#each presets as p (p.key)}
             {@const ok = fits(p.start, p.end)}
             <button
               class="shrink-0 rounded-full border border-slate-300 bg-surface px-2.5 py-1 text-xs text-slate-600 transition enabled:hover:border-indigo-400 disabled:opacity-40 sm:py-0.5"
               disabled={!ok}
-              title={ok ? 'Ajouter cette plage' : 'Chevauche une de vos plages'}
+              title={ok ? t('DayOverlay.addThis') : t('DayOverlay.overlapsShort')}
               onclick={() => create(p.start, p.end)}
             >{p.label} <span class="opacity-70">{minToTime(p.start)}–{minToTime(p.end)}</span></button>
           {/each}
@@ -547,29 +550,29 @@
     {#if !mobile}
       <!-- Computer: the others' rows, apart from mine (same inset as my box, so the hours line up) -->
       <div class={editable ? 'px-[21px]' : ''}>
-        <h3 class="mb-2 text-sm font-semibold text-slate-800">{editable ? 'Les autres invités' : 'Disponibilités de la journée'}</h3>
+        <h3 class="mb-2 text-sm font-semibold text-slate-800">{editable ? t('DayOverlay.others') : t('DayOverlay.dayAvailability')}</h3>
         {#if others.length}
           {@render othersTimeline()}
         {:else}
           <p class="text-sm text-slate-500">
-            {editable ? "Personne d'autre n'a encore indiqué de disponibilité pour cette journée." : "Personne n'a indiqué de disponibilité pour cette journée."}
+            {editable ? t('DayOverlay.nobodyElse') : t('DayOverlay.nobody')}
           </p>
         {/if}
       </div>
     {:else}
       <!-- Phone: the timeline only shows my ranges; the others are listed here -->
       <div>
-        <h3 class="mb-2 text-sm font-semibold text-slate-800">{editable ? 'Les autres invités' : 'Disponibilités de la journée'}</h3>
+        <h3 class="mb-2 text-sm font-semibold text-slate-800">{editable ? t('DayOverlay.others') : t('DayOverlay.dayAvailability')}</h3>
         {#if listRows.length === 0}
           <p class="text-sm text-slate-500">
-            {editable ? "Personne d'autre n'a encore indiqué de disponibilité pour cette journée." : "Personne n'a indiqué de disponibilité pour cette journée."}
+            {editable ? t('DayOverlay.nobodyElse') : t('DayOverlay.nobody')}
           </p>
         {:else}
           <ul class="divide-y divide-slate-100 rounded-xl border border-slate-200">
             {#each listRows as row (row.user.id)}
               <li class="flex flex-wrap items-center gap-2 px-3 py-2">
                 <span class="h-2.5 w-2.5 rounded-full" style="background:{colors.get(row.user.id)}"></span>
-                <span class="min-w-24 text-sm font-medium text-slate-800">{row.user.name}{row.user.id === me?.id ? ' (vous)' : ''}</span>
+                <span class="min-w-24 text-sm font-medium text-slate-800">{row.user.name}{row.user.id === me?.id ? ` ${t('common.you')}` : ''}</span>
                 <div class="flex flex-wrap gap-1.5">
                   {#each row.slots as s (s.id)}
                     <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{minToTime(s.start)} – {minToTime(s.end)}</span>
@@ -589,7 +592,7 @@
       <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
         <path d="M6 6l12 12M18 6L6 18" />
       </svg>
-      Fermer
+      {t('common.close')}
     </button>
   </div>
 </Modal>
@@ -598,17 +601,17 @@
   <Modal onclose={() => (newRange = null)} size="max-w-sm">
     <!-- A form: Enter adds the range -->
     <form class="space-y-4 p-5" onsubmit={(e) => { e.preventDefault(); addNewRange(); }}>
-      <h3 class="text-base font-semibold text-slate-900">Nouvelle plage</h3>
+      <h3 class="text-base font-semibold text-slate-900">{t('DayOverlay.newRange')}</h3>
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="label text-xs" for="nr-start">Heure de début</label>
+          <label class="label text-xs" for="nr-start">{t('DayOverlay.start')}</label>
           <select id="nr-start" class="input" bind:value={newRange.start}
             onchange={() => newRange.end <= newRange.start && (newRange.end = Math.min(newRange.start + 60, to))}>
             {#each OPTIONS.filter((m) => m < to) as m (m)}<option value={m}>{minToTime(m)}</option>{/each}
           </select>
         </div>
         <div>
-          <label class="label text-xs" for="nr-end">Heure de fin</label>
+          <label class="label text-xs" for="nr-end">{t('DayOverlay.end')}</label>
           <select id="nr-end" class="input" bind:value={newRange.end}>
             {#each OPTIONS.filter((m) => m > newRange.start) as m (m)}<option value={m}>{minToTime(m)}</option>{/each}
           </select>
@@ -616,7 +619,7 @@
       </div>
       {#if presets.length}
         <div class="flex flex-wrap gap-1.5">
-          {#each presets as p (p.label)}
+          {#each presets as p (p.key)}
             <button
               type="button"
               class="rounded-full border px-2.5 py-1 text-xs transition {newRange.start === p.start && newRange.end === p.end ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-slate-300 bg-surface text-slate-600'}"
@@ -625,10 +628,10 @@
           {/each}
         </div>
       {/if}
-      {#if !newRangeOk}<p class="text-xs text-rose-600">Cette plage chevauche une de vos plages.</p>{/if}
+      {#if !newRangeOk}<p class="text-xs text-rose-600">{t('DayOverlay.overlaps')}</p>{/if}
       <div class="flex justify-end gap-2">
-        <button type="button" class="btn-ghost" onclick={() => (newRange = null)}>Annuler</button>
-        <button class="btn-primary px-5" disabled={!newRangeOk}>Ajouter</button>
+        <button type="button" class="btn-ghost" onclick={() => (newRange = null)}>{t('common.cancel')}</button>
+        <button class="btn-primary px-5" disabled={!newRangeOk}>{t('DayOverlay.add')}</button>
       </div>
     </form>
   </Modal>

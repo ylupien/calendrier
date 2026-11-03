@@ -1,4 +1,4 @@
-const LOCALE = 'fr-CA';
+import { t, locale } from './i18n.svelte.js';
 
 export const pad = (n) => String(n).padStart(2, '0');
 
@@ -49,29 +49,36 @@ export function monthGrid(date) {
 export const minToTime = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 
 export const fmtLong = (s) =>
-  parseDay(s).toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  parseDay(s).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
 export const fmtMedium = (s) =>
-  parseDay(s).toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' });
+  parseDay(s).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
 
-export const fmtShort = (s) => parseDay(s).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' });
+export const fmtShort = (s) => parseDay(s).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 
-export const fmtMonth = (date) => date.toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' });
+export const fmtMonth = (date) => date.toLocaleDateString(locale(), { month: 'long', year: 'numeric' });
 
-export const fmtWeekday = (date, style = 'short') => date.toLocaleDateString(LOCALE, { weekday: style });
+export const fmtWeekday = (date, style = 'short') => date.toLocaleDateString(locale(), { weekday: style });
 
 /** "YYYY-MM-DDTHH:MM" -> readable. */
 export function fmtDateTime(s) {
-  const [d, t] = s.split('T');
-  return `${fmtMedium(d)} à ${t.replace(':', ' h ')}`;
+  const [d, time] = s.split('T');
+  return t('dates.dateTime', { date: fmtMedium(d), time: fmtTime(time) });
 }
 
-export const WEEKDAYS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+/** "14:30" → "14 h 30" (French) / "2:30 p.m." (English). */
+export function fmtTime(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit' });
+}
 
-/** "3 nov. 2026" for a single day, otherwise "3 nov. → 8 nov. 2026 · 3 jours". */
+/** Short weekday names, Sunday first: ['dim.', 'lun.', …] / ['Sun', 'Mon', …]. */
+export const weekdayNames = () => Array.from({ length: 7 }, (_, i) => fmtWeekday(new Date(2023, 0, 1 + i)));
+
+/** "3 nov. 2026" for a single day, otherwise "3 nov. → 8 nov. 2026 · 3 jours" (translated). */
 export function fmtOccasionDays(o) {
-  if (!o?.firstDay) return 'Aucune journée';
+  if (!o?.firstDay) return t('dates.noDay');
   const count = o.dayCount ?? o.days?.length ?? 1;
   if (count <= 1) return fmtMedium(o.firstDay);
-  return `${fmtShort(o.firstDay)} → ${fmtMedium(o.lastDay)} · ${count} jours`;
+  return t('dates.range', { from: fmtShort(o.firstDay), to: fmtMedium(o.lastDay), count });
 }

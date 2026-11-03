@@ -1,0 +1,16 @@
+{
+  "title": "Link a phone",
+  "copyPrompt": "Copy this link:",
+  "linked": "Device linked",
+  "linkedText": "Your occasions and availabilities are now on your phone too.",
+  "done": "Done",
+  "scan": "Scan this code with your phone's camera. It will recognize you just like this computer, with no password.",
+  "expired": "Code expired",
+  "newCode": "New code",
+  "validFor": "Valid for",
+  "singleUse": "single use",
+  "waiting": "Waiting for the phone",
+  "copied": "✓ Link copied",
+  "copyInstead": "Copy the link instead",
+  "warning": "Do not share this code: it gives access to your account. If the phone already had its own occasions, it will offer to merge the two accounts."
+}

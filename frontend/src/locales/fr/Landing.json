@@ -1,0 +1,58 @@
+{
+  "features": [
+    {
+      "title": "Journées au choix",
+      "text": "Choisissez précisément les journées et les heures de l'occasion, puis partagez son lien."
+    },
+    {
+      "title": "Plages à la souris",
+      "text": "Glissez pour indiquer vos disponibilités, plusieurs plages par jour, au doigt sur cellulaire."
+    },
+    {
+      "title": "En temps réel",
+      "text": "Chacun voit les disponibilités des autres s'afficher pendant qu'elles sont saisies."
+    },
+    {
+      "title": "Meilleurs moments",
+      "text": "Une carte de chaleur fait ressortir les moments où le plus de personnes sont libres."
+    },
+    {
+      "title": "Organisations",
+      "text": "Regroupez vos membres sous un logo et invitez-les tous en un clic."
+    },
+    {
+      "title": "Sans compte",
+      "text": "Ni mot de passe ni pistage : un seul témoin essentiel, et un code QR pour passer au cellulaire."
+    }
+  ],
+  "shots": [
+    {
+      "title": "Le calendrier de tout le monde",
+      "text": "Vue Jour, Semaine ou Mois : la barre de chaque invité montre l'heure de début, ses initiales et l'heure de fin. Survolez un nom pour le repérer.",
+      "alt": "Vue Semaine : barres de disponibilité de chaque invité, avec heure de début, initiales et heure de fin"
+    },
+    {
+      "title": "Le bon moment, en un coup d’œil",
+      "text": "Le rapport classe les meilleurs moments et les situe sur une carte de chaleur. Mode sombre inclus.",
+      "alt": "Rapport : carte de chaleur et meilleurs moments, en mode sombre"
+    },
+    {
+      "title": "Toutes vos occasions",
+      "text": "En cours, à venir, celles que vous gérez et les archives, filtrées par organisation.",
+      "alt": "Liste des occasions avec logos d'organisations et couronne pour celles que l'on gère"
+    }
+  ],
+  "heroTitle": "Trouvez le moment où tout le monde est libre",
+  "heroText": "<em>Disponibilités</em> est un calendrier de groupe : on crée une occasion, on partage son lien, et chaque invité indique ses plages de disponibilité. Tout le monde voit celles des autres, en temps réel.",
+  "inviteTitle": "✉️ Accès sur invitation",
+  "inviteText": "Ouvrez le lien d'une occasion qu'on vous a partagé : vous y serez associé automatiquement et pourrez ensuite créer vos propres occasions.",
+  "inviteDevice": "Vous utilisez déjà l'application sur un autre appareil ? Choisissez-y « 📱 Lier un cellulaire » et scannez le code QR avec celui-ci.",
+  "passwordBefore": "Vous avez un mot de passe ?",
+  "passwordLink": "Connectez-vous",
+  "passwordAfter": "pour retrouver votre compte.",
+  "mobileTitle": "Pensé pour le cellulaire",
+  "mobileText": "L'éditeur se replie sur deux lignes, avant-midi et après-midi : touchez pour ajouter une plage, glissez ses bords pour l'ajuster. Un code QR suffit pour retrouver vos occasions sur votre téléphone.",
+  "mobileAlt": "Éditeur de plages sur cellulaire : deux lignes avant-midi / après-midi",
+  "freeProject": "Projet libre, versé dans le domaine public.",
+  "seeSource": "Voir le code source sur GitHub"
+}

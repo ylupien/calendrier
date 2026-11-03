@@ -6,6 +6,7 @@
 <script>
   import { onMount } from 'svelte';
   import { lockScroll } from '../lib/scrollLock.js';
+  import { t } from '../lib/i18n.svelte.js';
 
   // topOnPhone: full height on a phone (header at the top, last element at the bottom), so neither moves
   // when the content's height changes.
@@ -35,7 +36,7 @@
 <div class="fixed inset-0 z-50 flex justify-center p-3 sm:items-center sm:p-4 {topOnPhone ? 'items-start' : 'items-center'}" role="dialog" aria-modal="true">
   <button
     class="absolute inset-0 cursor-default touch-none bg-black/40 backdrop-blur-sm"
-    aria-label="Fermer"
+    aria-label={t('common.close')}
     tabindex="-1"
     onclick={() => onclose?.()}
   ></button>

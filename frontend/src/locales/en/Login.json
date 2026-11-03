@@ -1,0 +1,16 @@
+{
+  "title": "Sign in",
+  "subtitle": "Get your account back on this device, with the email given in your profile.",
+  "currentAccount": "This device is currently using <strong>{{name}}</strong>'s account: it will switch to the account you sign in to.",
+  "withPassword": "🔑 With my password",
+  "withPasswordHelp": "The one chosen in “My profile”, or received from the organizer.",
+  "signingIn": "Signing in…",
+  "noPassword": "✉️ No password?",
+  "noPasswordHelp": "Receive by email a link that signs this device in to your account. It is valid for a few minutes, once.",
+  "sent": "📬 If an account uses <strong>{{email}}</strong>, a sign-in link has just been sent to it. Open it <strong>on this device</strong>; it is valid for {{minutes}} minutes.",
+  "nothingReceived": "Nothing received? Check your spam folder.",
+  "sending": "Sending…",
+  "resend": "Send the link again",
+  "sendLink": "Get a link by email",
+  "backHome": "Back to the home page"
+}

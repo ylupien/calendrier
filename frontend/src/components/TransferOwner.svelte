@@ -1,6 +1,7 @@
 <script>
   import { api } from '../lib/api.js';
   import Modal from './Modal.svelte';
+  import { t, th } from '../lib/i18n.svelte.js';
 
   // person: guest who will become the owner; iAmOwner: the current user gives away their own occasion.
   let { occasion, person, iAmOwner, onclose, ondone } = $props();
@@ -22,26 +23,23 @@
 
 <Modal {onclose}>
   <div class="space-y-4 p-6">
-    <h2 class="text-lg font-semibold text-slate-900">👑 Donner la propriété</h2>
-    <p class="text-sm text-slate-600">
-      <strong class="text-slate-900">{person.name}</strong> deviendra propriétaire de
-      « <strong class="text-slate-900">{occasion.title}</strong> ». Cette personne pourra modifier ses paramètres,
-      l'archiver et gérer les invités.
+    <h2 class="text-lg font-semibold text-slate-900">👑 {t('TransferOwner.title')}</h2>
+    <p class="text-sm text-slate-600 [&_strong]:text-slate-900">
+      {@html th('TransferOwner.text', { name: person.name, title: occasion.title })}
     </p>
     {#if iAmOwner}
       <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
         {#if occasion.organization}
-          ⚠️ Vous ne serez plus propriétaire : vous ne pourrez plus modifier les paramètres ni archiver l'occasion,
-          et vous ne gérerez les invités que si vous administrez l'organisation.
+          ⚠️ {t('TransferOwner.warnOrg')}
         {:else}
-          ⚠️ Vous ne serez plus propriétaire et ne pourrez plus gérer cette occasion. Seule cette personne pourra vous la redonner.
+          ⚠️ {t('TransferOwner.warn')}
         {/if}
       </p>
     {/if}
     {#if error}<p class="text-sm text-rose-600">{error}</p>{/if}
     <div class="flex justify-end gap-2 pt-2">
-      <button type="button" class="btn-ghost" onclick={onclose}>Annuler</button>
-      <button class="btn-primary" disabled={saving} onclick={confirm}>Donner la propriété</button>
+      <button type="button" class="btn-ghost" onclick={onclose}>{t('common.cancel')}</button>
+      <button class="btn-primary" disabled={saving} onclick={confirm}>{t('TransferOwner.confirm')}</button>
     </div>
   </div>
 </Modal>

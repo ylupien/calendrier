@@ -1,0 +1,12 @@
+{
+  "title": "New occasion",
+  "titleLabel": "Title",
+  "titlePlaceholder": "E.g.: Team dinner",
+  "description": "Description",
+  "days": "Days",
+  "withDeadline": "Set an end date for editing",
+  "deadlineHelp": "After this moment, nobody will be able to change their availability.",
+  "chooseDay": "Choose at least one day",
+  "creating": "Creating…",
+  "create": "Create the occasion"
+}

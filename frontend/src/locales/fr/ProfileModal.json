@@ -1,0 +1,22 @@
+{
+  "logoutConfirm": "Se déconnecter de cet appareil ? Vous pourrez revenir avec votre courriel et votre mot de passe.",
+  "titleProfile": "Mon profil",
+  "titleWelcome": "Bienvenue !",
+  "visibility": "Votre nom (et votre courriel, si vous l'indiquez) sera visible des autres participants de vos occasions.",
+  "learnMore": "En savoir plus",
+  "alreadyBefore": "Déjà venu, sur ce site ou un autre appareil ?",
+  "alreadyLink": "Se connecter",
+  "alreadyAfter": "pour retrouver votre compte et vos plages.",
+  "sameNameBefore": "participe déjà à cette occasion. Si c'est vous,",
+  "sameNameLink": "connectez-vous",
+  "sameNameAfter": "plutôt : sinon vous aurez deux comptes, et vos plages seront séparées. Pas de mot de passe ? Vous pourrez recevoir un lien de connexion par courriel.",
+  "passwordSet": "🔑 Mot de passe défini : connectez-vous avec votre courriel sur un autre appareil.",
+  "passwordChoose": "Choisissez un mot de passe pour retrouver votre compte si cet appareil l'oublie.",
+  "change": "Changer",
+  "choose": "Choisir",
+  "currentPassword": "Mot de passe actuel",
+  "newPassword": "Nouveau mot de passe",
+  "passwordHelp": "Au moins 8 caractères. Votre courriel ci-dessus sert à vous connecter.",
+  "logout": "Se déconnecter",
+  "continue": "Continuer"
+}

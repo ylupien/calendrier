@@ -1,7 +1,10 @@
+/** Error answered to the client: key = message in locales/<lang>.json (errors.<key>), params = its values. */
 export class HttpError extends Error {
-  constructor(status, message) {
-    super(message);
+  constructor(status, key, params = {}) {
+    super(key);
     this.status = status;
+    this.key = key;
+    this.params = params;
   }
 }
 

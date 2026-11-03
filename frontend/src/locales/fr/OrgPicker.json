@@ -1,0 +1,10 @@
+{
+  "organization": "Organisation",
+  "none": "Aucune (occasion personnelle)",
+  "notAllowed": "(non autorisé)",
+  "noneAllowed": "Vous n'êtes autorisé à créer des occasions dans aucune de vos organisations.",
+  "guests": "Invités",
+  "allMembers": "Tous les membres de l'organisation",
+  "allMembersHelp": "L'occasion apparaît automatiquement chez tous les membres, y compris les futurs.",
+  "linkOnly": "Seulement les personnes qui ont le lien"
+}

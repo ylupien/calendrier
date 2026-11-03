@@ -1,0 +1,57 @@
+{
+  "title": "Conditions d'utilisation",
+  "updated": "Dernière mise à jour : 1er novembre 2026",
+  "intro": "En utilisant l'application <em>Disponibilités</em>, vous acceptez les conditions suivantes. Elles sont rédigées simplement ; en cas de question, écrivez au responsable du service (coordonnées en bas de page).",
+  "privacyLink": "Confidentialité et témoins",
+  "service": {
+    "title": "1. Le service",
+    "text": "<em>Disponibilités</em> permet de créer des occasions, de partager un lien et d'indiquer ses plages de disponibilité afin de trouver un moment commun. Le service est offert gratuitement, sans compte ni mot de passe : votre navigateur est reconnu par un témoin essentiel, créé lorsque vous ouvrez le lien d'une occasion qu'on vous a partagé. L'accès se fait donc sur invitation (voir la page"
+  },
+  "access": {
+    "title": "2. Liens de partage et accès",
+    "anyone": "Toute personne qui reçoit le lien d'une occasion peut s'y joindre et voir les disponibilités des participants. Ne partagez le lien qu'avec les personnes concernées.",
+    "managers": "Le créateur d'une occasion, ainsi que les responsables et administrateurs de son organisation, peuvent retirer des participants, modifier l'occasion ou l'archiver.",
+    "qr": "Le code de liaison d'appareil (code QR) donne accès à votre identité dans l'application : ne le partagez pas."
+  },
+  "content": {
+    "title": "3. Votre contenu et votre comportement",
+    "intro": "Vous êtes responsable de ce que vous saisissez (nom, titres, descriptions, logos). Vous vous engagez à :",
+    "illegal": "ne publier aucun contenu illégal, injurieux, discriminatoire ou portant atteinte aux droits d'autrui ;",
+    "sensitive": "ne pas saisir de renseignements sensibles (santé, finances, numéros d'identification, etc.) dans les titres ou descriptions ;",
+    "impersonate": "utiliser un nom qui ne se fait pas passer pour une autre personne ;",
+    "disrupt": "ne pas tenter de perturber le service, d'y accéder sans autorisation ou de contourner ses mesures de sécurité.",
+    "removal": "Le responsable du service peut retirer un contenu ou restreindre un accès qui ne respecte pas ces conditions."
+  },
+  "availability": {
+    "title": "4. Disponibilité du service",
+    "text": "Le service est fourni « tel quel », sans garantie de disponibilité continue ni d'absence d'erreurs. Il peut être interrompu, notamment pour maintenance. Ne l'utilisez pas comme seul moyen de conserver une information importante."
+  },
+  "liability": {
+    "title": "5. Responsabilité",
+    "text": "Dans la mesure permise par la loi, le responsable du service ne peut être tenu responsable des dommages indirects découlant de l'utilisation ou de l'impossibilité d'utiliser le service, ni du contenu publié par les utilisateurs."
+  },
+  "personal": {
+    "title": "6. Renseignements personnels",
+    "before": "Le traitement de vos renseignements est décrit dans la page",
+    "after": ", qui fait partie des présentes conditions."
+  },
+  "source": {
+    "title": "7. Code source",
+    "before": "Le code source de l'application est public et versé dans le <strong>domaine public</strong>",
+    "colon": " :",
+    "after": "Cette liberté porte sur le code, pas sur les contenus et renseignements saisis par les utilisateurs."
+  },
+  "changes": {
+    "title": "8. Modifications",
+    "text": "Ces conditions peuvent être mises à jour ; la date en haut indique la dernière version. Continuer d'utiliser le service après une modification vaut acceptation de la nouvelle version."
+  },
+  "law": {
+    "title": "9. Droit applicable",
+    "text": "Ces conditions sont régies par les lois applicables au Québec."
+  },
+  "contact": {
+    "title": "10. Contact",
+    "operator": "Responsable du service",
+    "none": "Les coordonnées du responsable ne sont pas encore configurées."
+  }
+}

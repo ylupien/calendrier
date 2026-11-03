@@ -1,0 +1,18 @@
+{
+  "title": "Rapport des disponibilités",
+  "subtitle": "Plus la couleur est foncée, plus il y a de personnes disponibles en même temps.",
+  "hideEmpty": "Masquer les jours sans disponibilité",
+  "best": "Meilleurs moments",
+  "bestLine_one": "{{start}} – {{end}} · {{count}}/{{total}} personnes",
+  "bestLine_other": "{{start}} – {{end}} · {{count}}/{{total}} personnes",
+  "noGuests": "Aucun invité pour l'instant.",
+  "noSlots": "Personne n'a encore indiqué de disponibilité.",
+  "hour": "{{hour}}h",
+  "openDay": "Ouvrir cette journée",
+  "segment": "{{start}} – {{end}} · {{count}}/{{total}} ({{pct}} %) : {{names}}",
+  "dayMax": "Maximum de la journée",
+  "legend": "Disponibles :",
+  "legendRange_one": "1 → {{count}} personne",
+  "legendRange_other": "1 → {{count}} personnes",
+  "bestMoment": "meilleur moment"
+}

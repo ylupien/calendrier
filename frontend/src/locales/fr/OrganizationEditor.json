@@ -1,0 +1,47 @@
+{
+  "modes": {
+    "free": {
+      "label": "Mode libre",
+      "help": "Tous les membres peuvent créer des occasions."
+    },
+    "restricted": {
+      "label": "Mode autorisé",
+      "help": "Seuls les membres cochés ci-dessous peuvent créer des occasions."
+    }
+  },
+  "removeMemberConfirm": "Retirer {{name}} de l'organisation ? Il ne verra plus ses occasions « tous les membres » et ne pourra plus en créer.",
+  "deleteConfirm": "Supprimer l'organisation « {{name}} » ? Ses occasions sont conservées, sans organisation.",
+  "titleManage": "Gérer l'organisation",
+  "titleNew": "Nouvelle organisation",
+  "namePlaceholder": "Ex. : Club de randonnée",
+  "creation": "Création d'occasions",
+  "create": "Créer l'organisation",
+  "logo": "Logo",
+  "noLogo": "Aucun logo",
+  "uploading": "Envoi…",
+  "changeLogo": "Changer le logo",
+  "addLogo": "Ajouter un logo",
+  "remove": "Retirer",
+  "logoFormats": "PNG, JPEG, WebP, GIF ou SVG · 2 Mo max",
+  "members": "Membres",
+  "membersHelp": "Les personnes qui ouvrent le lien d'une occasion de l'organisation en deviennent membres automatiquement. Les administrateurs gèrent l'organisation et les invités de ses occasions, comme le responsable.",
+  "membersHelpFree": "En mode libre, tous les membres peuvent créer des occasions.",
+  "ownerTag": "responsable",
+  "adminTag": "admin",
+  "admin": "Admin",
+  "createLockedFree": "Mode libre : tous les membres peuvent créer",
+  "createLockedAdmin": "Responsable et admins peuvent toujours créer",
+  "canCreate": "Peut créer",
+  "noMembers": "Aucun membre pour l'instant.",
+  "removedMembers": "Membres retirés",
+  "removedHelp": "Ouvrir un lien ne les réintègre pas automatiquement.",
+  "restore": "Réintégrer",
+  "delete": "Supprimer l'organisation",
+  "logoTabs": {
+    "custom": "Personnalisé",
+    "gallery": "Galerie"
+  },
+  "logoShown": "Logo affiché",
+  "showThisLogo": "Afficher ce logo",
+  "general": "Informations"
+}

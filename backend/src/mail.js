@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { tFor } from './i18n.js';
 
 // Outgoing email through Resend's HTTP API (https://resend.com/docs/api-reference/emails/send-email).
 // RESEND_API_KEY: API key; MAIL_FROM: sender, e.g. "Disponibilités <connexion@example.com>"
@@ -53,25 +54,62 @@ export function staticAssetUrl(base, file) {
 const escapeHtml = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-/** Email with a one-time sign-in link. logoUrl: absolute address of the application's logo (optional). */
-export function signInMail({ name, url, minutes, logoUrl = null }) {
-  const hello = name ? `Bonjour ${name},` : 'Bonjour,';
+/** Translation for the HTML of an email: the interpolated values are escaped (texts: mail.* in locales). */
+const htmlT = (t) => (key, params) => t(key, { ...params, interpolation: { escapeValue: true } });
+
+const logoBlock = (logoUrl) =>
+  logoUrl
+    ? `<p style="margin:0 0 24px"><img src="${escapeHtml(logoUrl)}" alt="Disponibilités" width="200" height="47" style="display:block;width:200px;height:auto;border:0"></p>`
+    : '';
+
+/**
+ * Email with a one-time sign-in link. t: translation function of the email's language (req.t, tFor(lang)).
+ * logoUrl: absolute address of the application's logo (optional).
+ */
+export function signInMail({ t = tFor('fr'), name, url, minutes, logoUrl = null }) {
+  const h = htmlT(t);
+  const hello = name ? t('mail.hello', { name }) : t('mail.helloAnonymous');
   return {
-    subject: 'Votre lien de connexion — Disponibilités',
-    text:
-      `${hello}\n\nPour retrouver votre compte Disponibilités sur cet appareil, ouvrez ce lien ` +
-      `(valide ${minutes} minutes, une seule fois) :\n\n${url}\n\n` +
-      "Si vous n'avez pas demandé ce lien, ignorez ce courriel : rien ne change sur votre compte.",
+    subject: t('mail.signIn.subject'),
+    text: `${hello}\n\n${t('mail.signIn.text', { minutes })}\n\n${url}\n\n${t('mail.signIn.ignore')}`,
     html: `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:480px;color:#1e293b;line-height:1.5">
-  ${logoUrl ? `<p style="margin:0 0 24px"><img src="${escapeHtml(logoUrl)}" alt="Disponibilités" width="200" height="47" style="display:block;width:200px;height:auto;border:0"></p>` : ''}
+  ${logoBlock(logoUrl)}
   <p>${escapeHtml(hello)}</p>
-  <p>Pour retrouver votre compte <strong>Disponibilités</strong> sur cet appareil, cliquez sur ce bouton
-     (valide ${minutes} minutes, une seule fois) :</p>
+  <p>${h('mail.signIn.html', { minutes })}</p>
   <p style="margin:28px 0">
-    <a href="${escapeHtml(url)}" style="background:#4f46e5;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Me connecter</a>
+    <a href="${escapeHtml(url)}" style="background:#4f46e5;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">${escapeHtml(t('mail.signIn.button'))}</a>
   </p>
-  <p style="font-size:13px;color:#64748b">Ou copiez cette adresse dans votre navigateur :<br>${escapeHtml(url)}</p>
-  <p style="font-size:13px;color:#64748b">Si vous n'avez pas demandé ce lien, ignorez ce courriel : rien ne change sur votre compte.</p>
+  <p style="font-size:13px;color:#64748b">${escapeHtml(t('mail.signIn.copy'))}<br>${escapeHtml(url)}</p>
+  <p style="font-size:13px;color:#64748b">${escapeHtml(t('mail.signIn.ignore'))}</p>
+</div>`,
+  };
+}
+
+/**
+ * Invitation to an occasion. url: personal link (signs the device in to the invited account, then opens
+ * the occasion). message: optional words of the person who invites (plain text). t: as for signInMail.
+ */
+export function inviteMail({ t = tFor('fr'), name, inviterName, title, url, days, message = '', logoUrl = null }) {
+  const h = htmlT(t);
+  const hello = name ? t('mail.hello', { name }) : t('mail.helloAnonymous');
+  const who = inviterName || t('mail.invite.someone');
+  const lines = message ? message.split(/\r?\n/) : [];
+  return {
+    subject: t('mail.invite.subject', { who, title }),
+    text:
+      `${hello}\n\n${t('mail.invite.text', { who, title })}\n\n` +
+      (message ? `${message}\n\n` : '') +
+      `${t('mail.invite.textLink', { days })}\n\n${url}\n\n${t('mail.invite.textWarning')}`,
+    html: `<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:480px;color:#1e293b;line-height:1.5">
+  ${logoBlock(logoUrl)}
+  <p>${escapeHtml(hello)}</p>
+  <p>${h('mail.invite.html', { who, title })}</p>
+  ${lines.length ? `<p style="margin:20px 0;padding:12px 16px;border-left:3px solid #c7d2fe;background:#eef2ff;border-radius:4px;color:#334155">${lines.map(escapeHtml).join('<br>')}</p>` : ''}
+  <p style="margin:28px 0">
+    <a href="${escapeHtml(url)}" style="background:#4f46e5;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">${escapeHtml(t('mail.invite.button'))}</a>
+  </p>
+  <p style="font-size:13px;color:#64748b">${escapeHtml(t('mail.invite.copy', { days }))}<br>${escapeHtml(url)}</p>
+  <p style="font-size:13px;color:#64748b">${escapeHtml(t('mail.invite.warning'))}</p>
 </div>`,
   };
 }

@@ -1,0 +1,57 @@
+{
+  "title": "Terms of use",
+  "updated": "Last updated: November 1, 2026",
+  "intro": "By using the <em>Disponibilités</em> application, you accept the following terms. They are written in plain language; if you have a question, write to the service operator (contact details at the bottom of the page).",
+  "privacyLink": "Privacy and cookies",
+  "service": {
+    "title": "1. The service",
+    "text": "<em>Disponibilités</em> lets you create occasions, share a link and enter your availability time slots to find a common time. The service is free, with no account or password: your browser is recognized by an essential cookie, created when you open the link of an occasion someone shared with you. Access is therefore by invitation (see the page"
+  },
+  "access": {
+    "title": "2. Sharing links and access",
+    "anyone": "Anyone who receives an occasion's link can join it and see the participants' availabilities. Only share the link with the people concerned.",
+    "managers": "The creator of an occasion, as well as the owners and administrators of its organization, can remove participants, edit the occasion or archive it.",
+    "qr": "The device linking code (QR code) gives access to your identity in the application: do not share it."
+  },
+  "content": {
+    "title": "3. Your content and conduct",
+    "intro": "You are responsible for what you enter (name, titles, descriptions, logos). You agree to:",
+    "illegal": "not publish any content that is illegal, abusive, discriminatory or that infringes the rights of others;",
+    "sensitive": "not enter sensitive information (health, finances, identification numbers, etc.) in titles or descriptions;",
+    "impersonate": "use a name that does not impersonate another person;",
+    "disrupt": "not attempt to disrupt the service, access it without authorization or bypass its security measures.",
+    "removal": "The service operator may remove content or restrict access that does not comply with these terms."
+  },
+  "availability": {
+    "title": "4. Service availability",
+    "text": "The service is provided “as is”, with no guarantee of continuous availability or freedom from errors. It may be interrupted, notably for maintenance. Do not use it as the only way to keep important information."
+  },
+  "liability": {
+    "title": "5. Liability",
+    "text": "To the extent permitted by law, the service operator cannot be held liable for indirect damages resulting from the use of, or inability to use, the service, nor for content published by users."
+  },
+  "personal": {
+    "title": "6. Personal information",
+    "before": "The processing of your information is described on the page",
+    "after": ", which forms part of these terms."
+  },
+  "source": {
+    "title": "7. Source code",
+    "before": "The application's source code is public and dedicated to the <strong>public domain</strong>",
+    "colon": ":",
+    "after": "This freedom applies to the code, not to the content and information entered by users."
+  },
+  "changes": {
+    "title": "8. Changes",
+    "text": "These terms may be updated; the date at the top shows the latest version. Continuing to use the service after a change means you accept the new version."
+  },
+  "law": {
+    "title": "9. Governing law",
+    "text": "These terms are governed by the laws applicable in Quebec."
+  },
+  "contact": {
+    "title": "10. Contact",
+    "operator": "Service operator",
+    "none": "The operator's contact details are not configured yet."
+  }
+}

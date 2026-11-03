@@ -77,14 +77,19 @@ async function accountSummary(userId) {
 
 /**
  * One-time token that signs a device in to `userId` (page /lier/<token>).
- * Replaces the user's pending token: only the latest QR code or sign-in link works.
+ * kind 'link' (QR code, sign-in link): replaces the user's pending one, only the latest works.
+ * kind 'invite' (invitation to an occasion by email): several may be pending, one per invitation.
  */
-export async function createLinkToken(userId, ttlMinutes = TTL_MINUTES) {
+export async function createLinkToken(userId, ttlMinutes = TTL_MINUTES, kind = 'link') {
   const token = crypto.randomBytes(32).toString('base64url');
-  await pool.query('DELETE FROM link_tokens WHERE user_id = ? AND used_at IS NULL', [userId]);
+  if (kind === 'link') {
+    await pool.query("DELETE FROM link_tokens WHERE user_id = ? AND used_at IS NULL AND kind = 'link'", [userId]);
+  } else {
+    await pool.query('DELETE FROM link_tokens WHERE user_id = ? AND expires_at < NOW()', [userId]);
+  }
   const [result] = await pool.query(
-    'INSERT INTO link_tokens (token_hash, user_id, expires_at) VALUES (?, ?, NOW() + INTERVAL ? MINUTE)',
-    [hash(token), userId, ttlMinutes],
+    'INSERT INTO link_tokens (token_hash, user_id, kind, expires_at) VALUES (?, ?, ?, NOW() + INTERVAL ? MINUTE)',
+    [hash(token), userId, kind, ttlMinutes],
   );
   return { id: result.insertId, token, ttlSeconds: ttlMinutes * 60 };
 }
@@ -111,7 +116,7 @@ export function createLinkRoutes() {
   /** Shown on the phone before confirming. */
   r.get('/link/preview/:token', async (req, res) => {
     const t = await findValid(req.params.token);
-    if (!t) throw new HttpError(404, 'Ce code QR est expiré ou a déjà été utilisé. Affichez-en un nouveau sur votre ordinateur.');
+    if (!t) throw new HttpError(404, 'qrExpired');
     const sameUser = t.user_id === req.user?.id;
     res.json({
       name: t.name,
@@ -129,13 +134,13 @@ export function createLinkRoutes() {
    */
   r.post('/link/claim', async (req, res) => {
     const t = await findValid(req.body?.token);
-    if (!t) throw new HttpError(404, 'Ce code QR est expiré ou a déjà été utilisé. Affichez-en un nouveau sur votre ordinateur.');
+    if (!t) throw new HttpError(404, 'qrExpired');
 
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
       const [mark] = await conn.query('UPDATE link_tokens SET used_at = NOW() WHERE id = ? AND used_at IS NULL', [t.id]);
-      if (!mark.affectedRows) throw new HttpError(409, 'Ce code QR vient déjà d’être utilisé.');
+      if (!mark.affectedRows) throw new HttpError(409, 'qrJustUsed');
       if (req.user && req.user.id !== t.user_id && req.body?.merge !== false) await mergeUsers(conn, req.user.id, t.user_id);
       await conn.commit();
     } catch (err) {

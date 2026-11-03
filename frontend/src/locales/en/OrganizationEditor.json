@@ -1,0 +1,47 @@
+{
+  "modes": {
+    "free": {
+      "label": "Open mode",
+      "help": "All members can create occasions."
+    },
+    "restricted": {
+      "label": "Authorized mode",
+      "help": "Only the members checked below can create occasions."
+    }
+  },
+  "removeMemberConfirm": "Remove {{name}} from the organization? They will no longer see its “all members” occasions and will no longer be able to create any.",
+  "deleteConfirm": "Delete the organization “{{name}}”? Its occasions are kept, without an organization.",
+  "titleManage": "Manage the organization",
+  "titleNew": "New organization",
+  "namePlaceholder": "E.g. Hiking club",
+  "creation": "Creating occasions",
+  "create": "Create the organization",
+  "logo": "Logo",
+  "noLogo": "No logo",
+  "uploading": "Uploading…",
+  "changeLogo": "Change the logo",
+  "addLogo": "Add a logo",
+  "remove": "Remove",
+  "logoFormats": "PNG, JPEG, WebP, GIF or SVG · 2 MB max",
+  "members": "Members",
+  "membersHelp": "People who open the link of one of the organization's occasions become members automatically. Administrators manage the organization and the guests of its occasions, like the owner.",
+  "membersHelpFree": "In open mode, all members can create occasions.",
+  "ownerTag": "owner",
+  "adminTag": "admin",
+  "admin": "Admin",
+  "createLockedFree": "Open mode: all members can create",
+  "createLockedAdmin": "The owner and admins can always create",
+  "canCreate": "Can create",
+  "noMembers": "No members yet.",
+  "removedMembers": "Removed members",
+  "removedHelp": "Opening a link does not bring them back automatically.",
+  "restore": "Restore",
+  "delete": "Delete the organization",
+  "logoTabs": {
+    "custom": "Custom",
+    "gallery": "Gallery"
+  },
+  "logoShown": "Logo shown",
+  "showThisLogo": "Show this logo",
+  "general": "Details"
+}

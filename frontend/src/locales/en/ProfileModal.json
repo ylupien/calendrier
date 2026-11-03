@@ -1,0 +1,22 @@
+{
+  "logoutConfirm": "Sign out of this device? You can come back with your email and password.",
+  "titleProfile": "My profile",
+  "titleWelcome": "Welcome!",
+  "visibility": "Your name (and your email, if you provide it) will be visible to the other participants of your occasions.",
+  "learnMore": "Learn more",
+  "alreadyBefore": "Been here before, on this site or another device?",
+  "alreadyLink": "Sign in",
+  "alreadyAfter": "to get your account and your time slots back.",
+  "sameNameBefore": "is already taking part in this occasion. If that's you,",
+  "sameNameLink": "sign in",
+  "sameNameAfter": "instead: otherwise you will have two accounts, and your time slots will be split between them. No password? You can receive a sign-in link by email.",
+  "passwordSet": "🔑 Password set: sign in with your email on another device.",
+  "passwordChoose": "Choose a password to get your account back if this device forgets it.",
+  "change": "Change",
+  "choose": "Choose",
+  "currentPassword": "Current password",
+  "newPassword": "New password",
+  "passwordHelp": "At least 8 characters. Your email above is used to sign in.",
+  "logout": "Sign out",
+  "continue": "Continue"
+}

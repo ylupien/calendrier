@@ -1,0 +1,91 @@
+{
+  "title": "Privacy and cookies",
+  "updated": "Last updated: November 1, 2026",
+  "officer": "Person in charge of the protection of personal information",
+  "noContact": "The contact details of the person in charge of the protection of personal information are not configured yet.",
+  "intro": "This page explains, in plain terms, what information the <em>Disponibilités</em> application collects, why, who can see it and what your rights are. It is based on Quebec's <em>Act respecting the protection of personal information in the private sector</em>, as modernized by Law 25.",
+  "summary": {
+    "title": "In short",
+    "cookie": "The application uses <strong>a single cookie</strong>, strictly necessary for it to work. It is only created when you open the link of an occasion someone shared with you (or link a device): simply visiting the home page creates none.",
+    "noTracking": "<strong>No</strong> advertising, analytics, tracking or social media cookies.",
+    "noSale": "Your information is never sold, rented or disclosed for commercial purposes.",
+    "noAccount": "No account or password: only your name is required, your email is optional."
+  },
+  "storage": {
+    "title": "Cookies and storage in your browser",
+    "name": "Name",
+    "type": "Type",
+    "use": "Purpose",
+    "duration": "Duration",
+    "rows": {
+      "cookie": {
+        "type": "Essential cookie",
+        "use": "Recognize your browser so you find your occasions and availabilities again, without an account or password. It contains a random identifier, nothing else. Created when you open an invitation link or link a device.",
+        "duration": "Renewed on every visit (browsers limit it to about 400 days without a visit)"
+      },
+      "theme": {
+        "type": "Preference (local storage)",
+        "use": "Remember the chosen theme (light, dark or the device's). Stays on your device.",
+        "duration": "Until you change it or clear the site's data"
+      },
+      "lang": {
+        "type": "Preference (local storage)",
+        "use": "Remember the chosen language (French or English). Stays on your device.",
+        "duration": "Same"
+      },
+      "orgFilter": {
+        "type": "Preference (local storage)",
+        "use": "Remember the organization filter of “My occasions”. Stays on your device.",
+        "duration": "Same"
+      }
+    },
+    "noBanner": "Since these items are necessary for the service you request or only remember your preferences, no consent banner is shown. The application uses no technology that can locate or profile you. Clearing this site's cookies disconnects you from your identity: use “Link a phone” beforehand if you want to keep it on another device."
+  },
+  "collected": {
+    "title": "Information collected",
+    "identity": "<strong>Your name</strong> (required) and <strong>your email</strong> (optional), entered by you.",
+    "slots": "<strong>Your availability time slots</strong> and the occasions you take part in.",
+    "created": "The occasions and organizations you create (title, description, days, hours, logo).",
+    "technical": "Technical information: the cookie's identifier, the date of creation and of the last visit. The application does not keep your IP address."
+  },
+  "why": {
+    "title": "Why",
+    "text": "Only to run the service: show everyone's availabilities, find common times, manage guests and organizations, and link your devices. It is used for nothing else."
+  },
+  "who": {
+    "title": "Who can see your information",
+    "participants": "<strong>The other participants of an occasion</strong> see your name, your email if you provided it, and your availability time slots for that occasion. Anyone who receives an occasion's link can join it.",
+    "organizations": "<strong>The owners and administrators of an organization</strong> see the list of its members (name and email).",
+    "operator": "<strong>The service operator</strong>, for technical operations."
+  },
+  "hosting": {
+    "title": "Hosting and service provider",
+    "text": "The application is hosted on a server run by the service operator. To publish it on the Internet, traffic goes through <strong>Cloudflare</strong> (a company based in the United States), which provides the secure connection (HTTPS). For this purpose, Cloudflare processes technical connection data, such as your IP address, without it being stored in the application."
+  },
+  "retention": {
+    "title": "Retention",
+    "text": "Your information is kept as long as you use the service. When a guest is removed from an occasion, their availability time slots for that occasion are deleted. You can ask at any time for your information to be deleted (see below). Device linking codes expire after 10 minutes."
+  },
+  "security": {
+    "title": "Security",
+    "text": "Encrypted connection (HTTPS), cookie inaccessible to scripts (<code>HttpOnly</code>), linking codes stored as a hash and valid only once, isolated servers with minimal rights."
+  },
+  "rights": {
+    "title": "Your rights",
+    "intro": "At any time, you can:",
+    "correct": "<strong>view and correct</strong> your name and email (your profile menu, top right);",
+    "access": "request <strong>access</strong> to all the information about you, or have it <strong>communicated</strong> to you in a structured, commonly used technological format;",
+    "delete": "request its <strong>deletion</strong> or withdraw your consent;",
+    "complaintBefore": "file a complaint with the",
+    "complaintLink": "Commission d'accès à l'information du Québec",
+    "complaintAfter": ".",
+    "write": "To exercise these rights or for any question, write to the person in charge:"
+  },
+  "changes": {
+    "title": "Changes",
+    "text": "This page may be updated; the date at the top shows the latest version."
+  },
+  "seeAlsoBefore": "See also the",
+  "seeAlsoLink": "terms of use",
+  "seeAlsoAfter": "."
+}

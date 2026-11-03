@@ -1,0 +1,11 @@
+{
+  "label": "Background",
+  "theme": "Theme",
+  "light": "Light",
+  "dark": "Dark",
+  "help": {
+    "theme": "Follows the application's mode: light background in light mode, dark background in dark mode.",
+    "light": "Always on a white background, even in dark mode.",
+    "dark": "Always on a dark blue background, even in light mode (for a white logo)."
+  }
+}

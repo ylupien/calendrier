@@ -2,6 +2,7 @@
   import { api } from '../lib/api.js';
   import { session } from '../lib/session.svelte.js';
   import Modal from './Modal.svelte';
+  import { t } from '../lib/i18n.svelte.js';
 
   let name = $state(session.me?.name ?? '');
   let email = $state(session.me?.email ?? '');
@@ -45,7 +46,7 @@
   }
 
   async function logout() {
-    if (!confirm('Se déconnecter de cet appareil ? Vous pourrez revenir avec votre courriel et votre mot de passe.')) return;
+    if (!confirm(t('ProfileModal.logoutConfirm'))) return;
     await api.logout();
     location.assign('/');
   }
@@ -55,37 +56,36 @@
   <form class="space-y-4 p-6" onsubmit={submit}>
     <div>
       <h2 class="text-lg font-semibold text-slate-900">
-        {session.me?.name ? 'Mon profil' : 'Bienvenue !'}
+        {session.me?.name ? t('ProfileModal.titleProfile') : t('ProfileModal.titleWelcome')}
       </h2>
       <p class="mt-1 text-sm text-slate-500">
-        Votre nom (et votre courriel, si vous l'indiquez) sera visible des autres participants de vos occasions.
-        <a href="/confidentialite" target="_blank" rel="noopener" class="text-link">En savoir plus</a>
+        {t('ProfileModal.visibility')}
+        <a href="/confidentialite" target="_blank" rel="noopener" class="text-link">{t('ProfileModal.learnMore')}</a>
       </p>
     </div>
     {#if welcome}
       <!-- Full page load: the sign-in page then brings the person back here, on their account -->
       <p class="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
-        Déjà venu, sur ce site ou un autre appareil ?
-        <a href={loginHref} class="text-link font-medium">Se connecter</a> pour retrouver votre compte et vos plages.
+        {t('ProfileModal.alreadyBefore')}
+        <a href={loginHref} class="text-link font-medium">{t('ProfileModal.alreadyLink')}</a> {t('ProfileModal.alreadyAfter')}
       </p>
     {/if}
     <div>
-      <label class="label" for="pf-name">Nom</label>
+      <label class="label" for="pf-name">{t('common.name')}</label>
       <!-- svelte-ignore a11y_autofocus -->
       <input id="pf-name" class="input" bind:value={name} required maxlength="100" autofocus autocomplete="name" />
     </div>
     <div>
       <label class="label" for="pf-email">
-        Courriel
-        {#if !hasPassword && !pwOpen}<span class="font-normal text-slate-400">(facultatif)</span>{/if}
+        {t('common.email')}
+        {#if !hasPassword && !pwOpen}<span class="font-normal text-slate-400">{t('common.optional')}</span>{/if}
       </label>
       <input id="pf-email" type="email" class="input" bind:value={email} maxlength="255" autocomplete="email" required={hasPassword || pwOpen} />
     </div>
     {#if sameName}
       <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
-        <strong>{sameName}</strong> participe déjà à cette occasion. Si c'est vous,
-        <a href={loginHref} class="font-medium underline">connectez-vous</a> plutôt : sinon vous aurez deux comptes,
-        et vos plages seront séparées. Pas de mot de passe ? Vous pourrez recevoir un lien de connexion par courriel.
+        <strong>{sameName}</strong> {t('ProfileModal.sameNameBefore')}
+        <a href={loginHref} class="font-medium underline">{t('ProfileModal.sameNameLink')}</a> {t('ProfileModal.sameNameAfter')}
       </div>
     {/if}
     {#if session.me?.name}
@@ -94,27 +94,27 @@
           <div class="flex items-center justify-between gap-3">
             <p class="text-sm text-slate-600">
               {#if hasPassword}
-                🔑 Mot de passe défini : connectez-vous avec votre courriel sur un autre appareil.
+                {t('ProfileModal.passwordSet')}
               {:else}
-                Choisissez un mot de passe pour retrouver votre compte si cet appareil l'oublie.
+                {t('ProfileModal.passwordChoose')}
               {/if}
             </p>
             <button type="button" class="btn-outline shrink-0" onclick={() => (pwOpen = true)}>
-              {hasPassword ? 'Changer' : 'Choisir'}
+              {hasPassword ? t('ProfileModal.change') : t('ProfileModal.choose')}
             </button>
           </div>
         {:else}
           <div class="space-y-3">
             {#if hasPassword}
               <div>
-                <label class="label" for="pf-current">Mot de passe actuel</label>
+                <label class="label" for="pf-current">{t('ProfileModal.currentPassword')}</label>
                 <input id="pf-current" type="password" class="input" bind:value={currentPassword} required autocomplete="current-password" />
               </div>
             {/if}
             <div>
-              <label class="label" for="pf-password">{hasPassword ? 'Nouveau mot de passe' : 'Mot de passe'}</label>
+              <label class="label" for="pf-password">{hasPassword ? t('ProfileModal.newPassword') : t('common.password')}</label>
               <input id="pf-password" type="password" class="input" bind:value={password} required minlength="8" autocomplete="new-password" />
-              <p class="mt-1 text-xs text-slate-500">Au moins 8 caractères. Votre courriel ci-dessus sert à vous connecter.</p>
+              <p class="mt-1 text-xs text-slate-500">{t('ProfileModal.passwordHelp')}</p>
             </div>
           </div>
         {/if}
@@ -123,12 +123,12 @@
     {#if error}<p class="text-sm text-rose-600">{error}</p>{/if}
     <div class="flex flex-wrap justify-end gap-2 pt-2">
       {#if hasPassword}
-        <button type="button" class="btn-ghost mr-auto text-slate-500" onclick={logout}>Se déconnecter</button>
+        <button type="button" class="btn-ghost mr-auto text-slate-500" onclick={logout}>{t('ProfileModal.logout')}</button>
       {/if}
       {#if !session.profileRequired}
-        <button type="button" class="btn-ghost" onclick={close}>Annuler</button>
+        <button type="button" class="btn-ghost" onclick={close}>{t('common.cancel')}</button>
       {/if}
-      <button class="btn-primary" disabled={saving}>{saving ? 'Enregistrement…' : 'Continuer'}</button>
+      <button class="btn-primary" disabled={saving}>{saving ? t('common.saving') : t('ProfileModal.continue')}</button>
     </div>
   </form>
 </Modal>

@@ -1,0 +1,18 @@
+{
+  "title": "Availability report",
+  "subtitle": "The darker the colour, the more people are available at the same time.",
+  "hideEmpty": "Hide days without availability",
+  "best": "Best moments",
+  "bestLine_one": "{{start}} – {{end}} · {{count}}/{{total}} people",
+  "bestLine_other": "{{start}} – {{end}} · {{count}}/{{total}} people",
+  "noGuests": "No guests yet.",
+  "noSlots": "Nobody has given their availability yet.",
+  "hour": "{{hour}}h",
+  "openDay": "Open this day",
+  "segment": "{{start}} – {{end}} · {{count}}/{{total}} ({{pct}}%): {{names}}",
+  "dayMax": "Maximum for the day",
+  "legend": "Available:",
+  "legendRange_one": "1 → {{count}} person",
+  "legendRange_other": "1 → {{count}} people",
+  "bestMoment": "best moment"
+}

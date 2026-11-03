@@ -7,13 +7,16 @@
   import { session, askProfile } from '../lib/session.svelte.js';
   import { fmtOccasionDays, fmtDateTime, pad } from '../lib/dates.js';
   import { colorMap } from '../lib/colors.js';
+  import { withLive } from '../lib/orgLive.svelte.js';
   import Calendar from '../components/Calendar.svelte';
   import GuestList from '../components/GuestList.svelte';
   import CopyLink from '../components/CopyLink.svelte';
   import OccasionSettings from '../components/OccasionSettings.svelte';
   import Report from '../components/Report.svelte';
   import AddGuests from '../components/AddGuests.svelte';
+  import InviteByEmail from '../components/InviteByEmail.svelte';
   import TransferOwner from '../components/TransferOwner.svelte';
+  import { t } from '../lib/i18n.svelte.js';
 
   let { slug } = $props();
 
@@ -25,6 +28,7 @@
   let notice = $state('');
   let settingsOpen = $state(false);
   let addingGuests = $state(false);
+  let inviting = $state(false); // "Inviter par courriel" open
   let transferTo = $state(null); // guest about to receive the ownership
   // Guest list → calendar: people selected to be shown (temporary, empty = everyone) and person hovered.
   let focus = $state(new Set());
@@ -101,23 +105,21 @@
     occasion = { ...o, isGuest: occasion.isGuest };
     transferTo = null;
     settingsOpen = false;
-    flash(`${participants.find((p) => p.id === o.creatorId)?.name ?? 'Cette personne'} est maintenant propriétaire de l'occasion.`);
+    flash(t('Occasion.newOwner', { name: participants.find((p) => p.id === o.creatorId)?.name ?? t('Occasion.thisPerson') }));
   }
 
   function onOccasionDeleted() {
-    error = 'Cette occasion a été supprimée.';
+    error = t('Occasion.deleted');
     socket.emit('occasion:leave');
   }
 
   /** Site administrator: deletes the occasion for everyone. */
   async function deleteOccasion() {
-    const msg =
-      `Supprimer définitivement l'occasion « ${occasion.title} » ?\n\n` +
-      'Ses journées, ses invités et toutes leurs plages seront effacés. Cette action est irréversible.';
+    const msg = t('Occasion.confirmDelete', { title: occasion.title });
     if (!confirm(msg)) return;
     try {
       await api.admin.deleteOccasion(occasion.id);
-      navigate('/admin');
+      navigate('/admin/occasions');
     } catch (e) {
       flash(e.message);
     }
@@ -125,7 +127,7 @@
 
   function onParticipantRemoved({ userId }) {
     if (userId === me?.id) {
-      error = 'Vous avez été retiré de cette occasion.';
+      error = t('Occasion.removed');
       socket.emit('occasion:leave');
       return;
     }
@@ -134,10 +136,20 @@
   }
 
   async function removeGuest(p) {
-    if (!confirm(`Retirer ${p.name} de l'occasion ? Ses disponibilités seront supprimées.`)) return;
+    if (!confirm(t('Occasion.confirmRemove', { name: p.name }))) return;
     try {
       participants = (await api.removeGuest(slug, p.id)).participants;
       slots = slots.filter((s) => s.userId !== p.id);
+    } catch (e) {
+      flash(e.message);
+    }
+  }
+
+  async function resendInvitation(p) {
+    try {
+      const res = await api.inviteByEmail(slug, [{ email: p.email, name: p.name }]);
+      participants = res.participants;
+      flash(res.results[0]?.mailed ? t('Occasion.resent', { email: p.email }) : t('Occasion.resendFailed', { email: p.email }));
     } catch (e) {
       flash(e.message);
     }
@@ -228,7 +240,7 @@
   }
 
   async function setArchived(archived) {
-    if (archived && !confirm(`Archiver « ${occasion.title} » ? Plus personne ne pourra modifier ses disponibilités.`)) return;
+    if (archived && !confirm(t('Occasion.confirmArchive', { title: occasion.title }))) return;
     try {
       occasion = { ...(await api.archiveOccasion(slug, archived)), canManageGuests: occasion.canManageGuests, isGuest: occasion.isGuest };
     } catch (e) {
@@ -247,45 +259,45 @@
   <div class="card mx-auto max-w-lg p-8 text-center">
     <div class="text-4xl">🔍</div>
     <p class="mt-3 font-medium text-slate-800">{error}</p>
-    <a href="/" onclick={link} class="btn-outline mt-5">Retour à mes occasions</a>
+    <a href="/" onclick={link} class="btn-outline mt-5">{t('Occasion.backToMine')}</a>
   </div>
 {:else if !occasion}
-  <p class="py-24 text-center text-slate-400">Chargement…</p>
+  <p class="py-24 text-center text-slate-400">{t('common.loading')}</p>
 {:else}
   <!-- Wide screens: both columns have the same height; the back link stays at the top,
        the title block ends at the same height as the action buttons. The minimum height is the one
        with the owner's buttons, so the title does not move for guests (who have no buttons). -->
   <div class="flex flex-col gap-4 lg:min-h-27 lg:flex-row lg:items-stretch lg:justify-between {occasion.description ? 'mb-3' : 'mb-6'}">
     <div class="flex min-w-0 flex-col justify-between gap-1">
-      <a href="/" onclick={link} class="text-link self-start text-sm font-medium">← Mes occasions</a>
+      <a href="/" onclick={link} class="text-link self-start text-sm font-medium">← {t('common.myOccasions')}</a>
       <div>
       <h1 class="text-2xl font-bold text-slate-900">{occasion.title}</h1>
       <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
         <span>📅 {range}</span>
         {#if occasion.organization}
-          <span>🏢 {occasion.organization.name}{occasion.allMembers ? ' · tous les membres invités' : ''}</span>
+          <span>🏢 {withLive(occasion.organization).name}{occasion.allMembers ? ` · ${t('Occasion.allMembers')}` : ''}</span>
         {/if}
         {#if occasion.editDeadline}
-          <span>✏️ Édition jusqu'au {fmtDateTime(occasion.editDeadline)}</span>
+          <span>✏️ {t('Occasion.editUntil', { date: fmtDateTime(occasion.editDeadline) })}</span>
         {/if}
       </div>
       </div>
     </div>
     <div class="flex w-full flex-col gap-2 lg:w-96">
       {#if !occasion.archived}
-        <span class="text-xs font-medium uppercase tracking-wide text-slate-500">Lien de partage</span>
+        <span class="text-xs font-medium uppercase tracking-wide text-slate-500">{t('Occasion.shareLink')}</span>
         <CopyLink {slug} />
       {/if}
       {#if canSettings}
         <div class="flex justify-end gap-2">
           {#if !occasion.archived}
-            <button class="btn-outline" onclick={() => setArchived(true)}>🗄️ Archiver</button>
-            <button class="btn-outline" onclick={() => (settingsOpen = true)}>⚙️ Paramètres</button>
+            <button class="btn-outline" onclick={() => setArchived(true)}>🗄️ {t('Occasion.archive')}</button>
+            <button class="btn-outline" onclick={() => (settingsOpen = true)}>⚙️ {t('Occasion.settings')}</button>
           {:else if occasion.archivedManually}
-            <button class="btn-outline" onclick={() => setArchived(false)}>↩️ Désarchiver</button>
+            <button class="btn-outline" onclick={() => setArchived(false)}>↩️ {t('Occasion.unarchive')}</button>
           {/if}
           {#if me?.isSiteAdmin}
-            <button class="btn-outline text-rose-600" onclick={deleteOccasion} title="Supprimer l'occasion (administrateur)">🗑️ Supprimer</button>
+            <button class="btn-outline text-rose-600" onclick={deleteOccasion} title={t('Occasion.deleteTitle')}>🗑️ {t('common.delete')}</button>
           {/if}
         </div>
       {/if}
@@ -296,27 +308,26 @@
 
   {#if occasion.isGuest === false}
     <div class="mb-4 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
-      🛡️ Vous consultez cette occasion comme administrateur du site : vous n'en êtes pas invité.
+      🛡️ {t('Occasion.adminView')}
     </div>
   {/if}
 
   {#if occasion.archived}
     <div class="mb-4 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-600">
-      🗄️ {occasion.archivedManually ? 'Cette occasion a été archivée par son créateur' : 'Cette occasion est terminée et archivée'} :
-      les disponibilités sont en lecture seule.
+      🗄️ {occasion.archivedManually ? t('Occasion.archivedManually') : t('Occasion.archivedEnded')}
     </div>
   {:else if editClosed}
     <div class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      🔒 La période d'édition est terminée : les disponibilités ne peuvent plus être modifiées.
+      🔒 {t('Occasion.editClosed')}
     </div>
   {/if}
 
   <div class="mb-4 flex gap-1 border-b border-slate-200">
-    {#each [{ id: 'calendar', label: '🗓️ Calendrier' }, { id: 'report', label: '📊 Rapport' }] as t (t.id)}
+    {#each [{ id: 'calendar', label: `🗓️ ${t('Occasion.tabs.calendar')}` }, { id: 'report', label: `📊 ${t('Occasion.tabs.report')}` }] as tb (tb.id)}
       <button
-        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium transition {tab.value === t.id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}"
-        onclick={() => (tab.value = t.id)}
-      >{t.label}</button>
+        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium transition {tab.value === tb.id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}"
+        onclick={() => (tab.value = tb.id)}
+      >{tb.label}</button>
     {/each}
   </div>
 
@@ -361,6 +372,8 @@
       onremove={removeGuest}
       ontransfer={(p) => (transferTo = p)}
       onaddguests={() => (addingGuests = true)}
+      oninvite={() => (inviting = true)}
+      onresend={resendInvitation}
       {focus}
       onhover={(id) => (hovered = id)}
       ontoggle={toggleFocus}
@@ -375,6 +388,10 @@
 
 {#if addingGuests}
   <AddGuests {occasion} onclose={() => (addingGuests = false)} onadded={(list) => (participants = list)} />
+{/if}
+
+{#if inviting}
+  <InviteByEmail {occasion} onclose={() => (inviting = false)} oninvited={(list) => (participants = list)} />
 {/if}
 
 {#if transferTo}

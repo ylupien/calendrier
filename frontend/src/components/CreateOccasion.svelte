@@ -2,6 +2,7 @@
   import { api } from '../lib/api.js';
   import { session, askProfile } from '../lib/session.svelte.js';
   import Modal from './Modal.svelte';
+  import { t } from '../lib/i18n.svelte.js';
   import OrgPicker from './OrgPicker.svelte';
   import DayHoursPicker from './DayHoursPicker.svelte';
   import DaysPicker from './DaysPicker.svelte';
@@ -54,36 +55,36 @@
 
 <Modal {onclose} size="max-w-lg">
   <form class="space-y-4 p-6" onsubmit={submit}>
-    <h2 class="text-lg font-semibold text-slate-900">Nouvelle occasion</h2>
+    <h2 class="text-lg font-semibold text-slate-900">{t('CreateOccasion.title')}</h2>
     <OrgPicker {orgs} bind:organizationId bind:allMembers />
     <div>
-      <label class="label" for="oc-title">Titre</label>
+      <label class="label" for="oc-title">{t('CreateOccasion.titleLabel')}</label>
       <!-- svelte-ignore a11y_autofocus -->
-      <input id="oc-title" class="input" bind:value={title} required maxlength="200" placeholder="Ex. : Souper d'équipe" autofocus />
+      <input id="oc-title" class="input" bind:value={title} required maxlength="200" placeholder={t('CreateOccasion.titlePlaceholder')} autofocus />
     </div>
     <div>
-      <label class="label" for="oc-desc">Description <span class="font-normal text-slate-400">(facultatif)</span></label>
+      <label class="label" for="oc-desc">{t('CreateOccasion.description')} <span class="font-normal text-slate-400">{t('common.optional')}</span></label>
       <textarea id="oc-desc" class="input" rows="2" bind:value={description} maxlength="5000"></textarea>
     </div>
     <div>
-      <span class="label">Journées</span>
+      <span class="label">{t('CreateOccasion.days')}</span>
       <DaysPicker bind:days />
     </div>
     <DayHoursPicker bind:dayStart bind:dayEnd />
     <div class="rounded-xl bg-slate-50 p-3">
       <label class="flex items-center gap-2 text-sm font-medium text-slate-700">
         <input type="checkbox" class="h-4 w-4 rounded accent-indigo-600" bind:checked={withDeadline} />
-        Définir une date de fin de l'édition
+        {t('CreateOccasion.withDeadline')}
       </label>
       {#if withDeadline}
         <input type="datetime-local" class="input mt-2" bind:value={editDeadline} required />
-        <p class="mt-1 text-xs text-slate-500">Après ce moment, plus personne ne pourra modifier ses disponibilités.</p>
+        <p class="mt-1 text-xs text-slate-500">{t('CreateOccasion.deadlineHelp')}</p>
       {/if}
     </div>
     {#if error}<p class="text-sm text-rose-600">{error}</p>{/if}
     <div class="flex justify-end gap-2 pt-2">
-      <button type="button" class="btn-ghost" onclick={onclose}>Annuler</button>
-      <button class="btn-primary" disabled={saving || !days.length} title={days.length ? '' : 'Choisissez au moins une journée'}>{saving ? 'Création…' : "Créer l'occasion"}</button>
+      <button type="button" class="btn-ghost" onclick={onclose}>{t('common.cancel')}</button>
+      <button class="btn-primary" disabled={saving || !days.length} title={days.length ? '' : t('CreateOccasion.chooseDay')}>{saving ? t('CreateOccasion.creating') : t('CreateOccasion.create')}</button>
     </div>
   </form>
 </Modal>

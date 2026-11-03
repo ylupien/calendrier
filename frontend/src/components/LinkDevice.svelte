@@ -4,6 +4,7 @@
   import { api } from '../lib/api.js';
   import { session } from '../lib/session.svelte.js';
   import Modal from './Modal.svelte';
+  import { t } from '../lib/i18n.svelte.js';
 
   // Computer side: shows a one-time QR code; the phone that scans it becomes the same user.
   let { onclose } = $props();
@@ -23,10 +24,10 @@
     error = '';
     status = 'pending';
     try {
-      const t = await api.createLink();
-      const url = `${base()}/lier/${t.token}`;
-      link = { id: t.id, url, expiresAt: Date.now() + t.ttlSeconds * 1000 };
-      remaining = t.ttlSeconds;
+      const tk = await api.createLink();
+      const url = `${base()}/lier/${tk.token}`;
+      link = { id: tk.id, url, expiresAt: Date.now() + tk.ttlSeconds * 1000 };
+      remaining = tk.ttlSeconds;
       qr = await QRCode.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0f172a', light: '#ffffff' } });
     } catch (e) {
       error = e.message;
@@ -66,28 +67,28 @@
       copied = true;
       setTimeout(() => (copied = false), 1500);
     } catch {
-      window.prompt('Copiez ce lien :', link.url);
+      window.prompt(t('LinkDevice.copyPrompt'), link.url);
     }
   }
 </script>
 
 <Modal {onclose} size="max-w-md">
   <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-    <h2 class="text-lg font-semibold text-slate-900">Lier un cellulaire</h2>
-    <button class="btn-ghost px-2 text-lg leading-none" onclick={onclose} aria-label="Fermer">×</button>
+    <h2 class="text-lg font-semibold text-slate-900">{t('LinkDevice.title')}</h2>
+    <button class="btn-ghost px-2 text-lg leading-none" onclick={onclose} aria-label={t('common.close')}>×</button>
   </div>
 
   <div class="space-y-4 p-6 text-center">
     {#if status === 'used'}
       <div class="py-6">
         <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl">✓</div>
-        <p class="mt-4 font-semibold text-slate-900">Appareil lié</p>
-        <p class="mt-1 text-sm text-slate-500">Vous retrouvez maintenant vos occasions et disponibilités sur votre cellulaire.</p>
+        <p class="mt-4 font-semibold text-slate-900">{t('LinkDevice.linked')}</p>
+        <p class="mt-1 text-sm text-slate-500">{t('LinkDevice.linkedText')}</p>
       </div>
-      <button class="btn-primary w-full" onclick={onclose}>Terminer</button>
+      <button class="btn-primary w-full" onclick={onclose}>{t('LinkDevice.done')}</button>
     {:else}
       <p class="text-sm text-slate-600">
-        Scannez ce code avec l'appareil photo de votre cellulaire. Vous y serez reconnu comme sur cet ordinateur, sans mot de passe.
+        {t('LinkDevice.scan')}
       </p>
       <div class="relative mx-auto aspect-square w-60 rounded-xl border border-slate-200 bg-white p-2">
         {#if qr}
@@ -95,21 +96,20 @@
         {/if}
         {#if status === 'expired'}
           <div class="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <p class="text-sm font-medium text-slate-700">Code expiré</p>
-            <button class="btn-primary" onclick={generate}>Nouveau code</button>
+            <p class="text-sm font-medium text-slate-700">{t('LinkDevice.expired')}</p>
+            <button class="btn-primary" onclick={generate}>{t('LinkDevice.newCode')}</button>
           </div>
         {/if}
       </div>
       {#if status === 'pending' && link}
         <p class="text-xs text-slate-500">
-          Valide encore <span class="font-medium tabular-nums">{mmss(remaining)}</span> · utilisable une seule fois
-          <span class="ml-1 inline-block h-2 w-2 animate-pulse rounded-full bg-indigo-500" title="En attente du cellulaire"></span>
+          {t('LinkDevice.validFor')} <span class="font-medium tabular-nums">{mmss(remaining)}</span> · {t('LinkDevice.singleUse')}
+          <span class="ml-1 inline-block h-2 w-2 animate-pulse rounded-full bg-indigo-500" title={t('LinkDevice.waiting')}></span>
         </p>
-        <button class="text-xs text-indigo-600 hover:underline" onclick={copy}>{copied ? '✓ Lien copié' : 'Copier le lien à la place'}</button>
+        <button class="text-xs text-indigo-600 hover:underline" onclick={copy}>{copied ? t('LinkDevice.copied') : t('LinkDevice.copyInstead')}</button>
       {/if}
       <p class="rounded-lg bg-amber-50 px-3 py-2 text-left text-xs text-amber-800">
-        Ne partagez pas ce code : il donne accès à votre compte. Si le cellulaire avait déjà ses propres occasions,
-        il vous proposera de fusionner les deux comptes.
+        {t('LinkDevice.warning')}
       </p>
     {/if}
     {#if error}<p class="text-sm text-rose-600">{error}</p>{/if}

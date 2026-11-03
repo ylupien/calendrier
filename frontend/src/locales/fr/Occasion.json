@@ -1,0 +1,27 @@
+{
+  "thisPerson": "Cette personne",
+  "newOwner": "{{name}} est maintenant propriétaire de l'occasion.",
+  "deleted": "Cette occasion a été supprimée.",
+  "confirmDelete": "Supprimer définitivement l'occasion « {{title}} » ?\n\nSes journées, ses invités et toutes leurs plages seront effacés. Cette action est irréversible.",
+  "removed": "Vous avez été retiré de cette occasion.",
+  "confirmRemove": "Retirer {{name}} de l'occasion ? Ses disponibilités seront supprimées.",
+  "resent": "Invitation renvoyée à {{email}}.",
+  "resendFailed": "Le courriel n'a pas pu être envoyé à {{email}}.",
+  "confirmArchive": "Archiver « {{title}} » ? Plus personne ne pourra modifier ses disponibilités.",
+  "backToMine": "Retour à mes occasions",
+  "allMembers": "tous les membres invités",
+  "editUntil": "Édition jusqu'au {{date}}",
+  "shareLink": "Lien de partage",
+  "archive": "Archiver",
+  "settings": "Paramètres",
+  "unarchive": "Désarchiver",
+  "deleteTitle": "Supprimer l'occasion (administrateur)",
+  "adminView": "Vous consultez cette occasion comme administrateur du site : vous n'en êtes pas invité.",
+  "archivedManually": "Cette occasion a été archivée par son créateur : les disponibilités sont en lecture seule.",
+  "archivedEnded": "Cette occasion est terminée et archivée : les disponibilités sont en lecture seule.",
+  "editClosed": "La période d'édition est terminée : les disponibilités ne peuvent plus être modifiées.",
+  "tabs": {
+    "calendar": "Calendrier",
+    "report": "Rapport"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "title": "My organizations",
+  "intro": "Organizations you own or belong to.",
+  "new": "New organization",
+  "empty": {
+    "title": "No organizations yet",
+    "text": "Create an organization to group your occasions under one logo, or open the link of an organization's occasion: you will become a member automatically.",
+    "create": "Create an organization"
+  },
+  "role": {
+    "owner": "Owner",
+    "admin": "Administrator",
+    "member": "Member"
+  },
+  "mode": {
+    "free": "Open mode",
+    "restricted": "Authorized mode"
+  },
+  "members_one": "{{count}} member",
+  "members_other": "{{count}} members",
+  "canCreate": "You can create occasions",
+  "cannotCreate": "Creation not allowed",
+  "activeOccasions": "Current and upcoming occasions ({{n}})",
+  "noActive": "No current or upcoming occasions.",
+  "archivedMore_one": "+ {{count}} archived",
+  "archivedMore_other": "+ {{count}} archived",
+  "manage": "Manage",
+  "occasion": "Occasion"
+}

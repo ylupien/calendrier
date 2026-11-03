@@ -5,6 +5,9 @@ import { pool } from './db.js';
 import { userFromCookieHeader } from './auth.js';
 
 export const roomOf = (slug) => `occ:${slug}`;
+/** Everyone who may see an organization: its members, the viewers of its occasions, site administrators. */
+export const orgRoom = (id) => `org:${id}`;
+export const SITE_ADMINS_ROOM = 'site-admins';
 
 /**
  * Real-time layer.
@@ -57,6 +60,7 @@ export async function createSocketServer(httpServer) {
       const user = await userFromCookieHeader(socket.handshake.headers.cookie);
       if (!user) return next(new Error('unauthorized'));
       socket.data.userId = user.id;
+      socket.data.isSiteAdmin = user.isSiteAdmin;
       socket.data.editing = null;
       next();
     } catch (err) {
@@ -64,11 +68,23 @@ export async function createSocketServer(httpServer) {
     }
   });
 
-  io.on('connection', (socket) => {
+  io.on('connection', async (socket) => {
+    // Changes of the organizations one belongs to (name, logo) are shown right away on every page.
+    try {
+      const [orgs] = await pool.query(
+        'SELECT organization_id FROM organization_members WHERE user_id = ? AND removed_at IS NULL',
+        [socket.data.userId],
+      );
+      for (const { organization_id } of orgs) socket.join(orgRoom(organization_id));
+      if (socket.data.isSiteAdmin) socket.join(SITE_ADMINS_ROOM);
+    } catch (err) {
+      console.error('[socket] organizations', err.message);
+    }
+
     socket.on('occasion:join', async (slug, ack) => {
       try {
         const [rows] = await pool.query(
-          `SELECT o.id FROM occasions o
+          `SELECT o.id, o.organization_id FROM occasions o
            JOIN participants p ON p.occasion_id = o.id AND p.user_id = ? AND p.removed_at IS NULL
            WHERE o.slug = ?`,
           [socket.data.userId, String(slug)],
@@ -76,6 +92,8 @@ export async function createSocketServer(httpServer) {
         if (!rows.length) return ack?.({ ok: false });
         if (socket.data.slug !== slug) leave(socket);
         socket.join(roomOf(slug));
+        // Its organization's changes too (the header shows its logo).
+        if (rows[0].organization_id) socket.join(orgRoom(rows[0].organization_id));
         socket.data.slug = slug;
         socket.data.editing = null;
         ack?.({ ok: true, presence: await snapshot(slug) });

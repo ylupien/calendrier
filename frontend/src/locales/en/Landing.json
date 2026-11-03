@@ -1,0 +1,58 @@
+{
+  "features": [
+    {
+      "title": "Days of your choice",
+      "text": "Pick the exact days and hours of the occasion, then share its link."
+    },
+    {
+      "title": "Time slots with the mouse",
+      "text": "Drag to show when you're available, several time slots per day, with your finger on a phone."
+    },
+    {
+      "title": "In real time",
+      "text": "Everyone sees the others' availabilities appear as they are entered."
+    },
+    {
+      "title": "Best times",
+      "text": "A heat map highlights the times when the most people are free."
+    },
+    {
+      "title": "Organizations",
+      "text": "Group your members under a logo and invite them all in one click."
+    },
+    {
+      "title": "No account",
+      "text": "No password, no tracking: a single essential cookie, and a QR code to switch to your phone."
+    }
+  ],
+  "shots": [
+    {
+      "title": "Everyone's calendar",
+      "text": "Day, Week or Month view: each guest's bar shows the start time, their initials and the end time. Hover over a name to spot them.",
+      "alt": "Week view: availability bars of each guest, with start time, initials and end time"
+    },
+    {
+      "title": "The right time, at a glance",
+      "text": "The report ranks the best times and places them on a heat map. Dark mode included.",
+      "alt": "Report: heat map and best times, in dark mode"
+    },
+    {
+      "title": "All your occasions",
+      "text": "Ongoing, upcoming, the ones you manage and the archives, filtered by organization.",
+      "alt": "List of occasions with organization logos and a crown for the ones you manage"
+    }
+  ],
+  "heroTitle": "Find the time when everyone is free",
+  "heroText": "<em>Disponibilités</em> is a group calendar: create an occasion, share its link, and each guest enters the times they're available. Everyone sees the others' availabilities, in real time.",
+  "inviteTitle": "✉️ Access by invitation",
+  "inviteText": "Open the link of an occasion someone shared with you: you will be added to it automatically and can then create your own occasions.",
+  "inviteDevice": "Already using the application on another device? Choose “📱 Link a phone” there and scan the QR code with this one.",
+  "passwordBefore": "Have a password?",
+  "passwordLink": "Sign in",
+  "passwordAfter": "to get your account back.",
+  "mobileTitle": "Designed for phones",
+  "mobileText": "The editor folds into two rows, morning and afternoon: tap to add a time slot, drag its edges to adjust it. A QR code is all it takes to find your occasions on your phone.",
+  "mobileAlt": "Time slot editor on a phone: two rows, morning / afternoon",
+  "freeProject": "Free project, dedicated to the public domain.",
+  "seeSource": "See the source code on GitHub"
+}

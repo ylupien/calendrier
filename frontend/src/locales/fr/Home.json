@@ -1,0 +1,46 @@
+{
+  "archiveConfirm": "Archiver « {{title}} » ? Plus personne ne pourra modifier ses disponibilités.",
+  "crown": {
+    "createdTitle": "Vous avez créé cette occasion",
+    "adminTitle": "Vous administrez l'organisation de cette occasion",
+    "createdLabel": "Créée par vous",
+    "adminLabel": "Organisation administrée par vous"
+  },
+  "allMembers": "Tous les membres",
+  "archivedBadge": "Archivée",
+  "editClosed": "Édition fermée",
+  "archive": "Archiver",
+  "unarchive": "Désarchiver",
+  "intro": "Créez une occasion, partagez le lien et voyez les disponibilités de chacun en temps réel.",
+  "newOccasion": "Nouvelle occasion",
+  "empty": {
+    "title": "Aucune occasion pour l'instant",
+    "text": "Créez votre première occasion, ou ouvrez un lien qu'on vous a partagé : vous y serez associé automatiquement.",
+    "create": "Créer une occasion"
+  },
+  "tabs": {
+    "active": "En cours et à venir",
+    "managed": "Que je gère",
+    "archived": "Archives"
+  },
+  "filter": {
+    "label": "Organisation",
+    "all": "Toutes",
+    "none": "Personnelles (sans organisation)"
+  },
+  "sections": {
+    "current": "En cours",
+    "upcoming": "À venir",
+    "archived": "Archivées"
+  },
+  "none": {
+    "active": "Aucune occasion en cours ou à venir.",
+    "activeFiltered": "Aucune occasion en cours ou à venir pour ce filtre.",
+    "managed": "Vous ne gérez aucune occasion.",
+    "managedFiltered": "Vous ne gérez aucune occasion pour ce filtre.",
+    "archived": "Aucune occasion archivée.",
+    "archivedFiltered": "Aucune occasion archivée pour ce filtre."
+  },
+  "managedIntro": "Les occasions que vous avez créées, et celles des organisations dont vous êtes responsable ou administrateur.",
+  "archivedIntro": "Les occasions terminées ou archivées par leur créateur restent consultables en lecture seule."
+}

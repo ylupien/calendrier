@@ -1,0 +1,7 @@
+{
+  "title": "Donner la propriété",
+  "text": "<strong>{{name}}</strong> deviendra propriétaire de « <strong>{{title}}</strong> ». Cette personne pourra modifier ses paramètres, l'archiver et gérer les invités.",
+  "warnOrg": "Vous ne serez plus propriétaire : vous ne pourrez plus modifier les paramètres ni archiver l'occasion, et vous ne gérerez les invités que si vous administrez l'organisation.",
+  "warn": "Vous ne serez plus propriétaire et ne pourrez plus gérer cette occasion. Seule cette personne pourra vous la redonner.",
+  "confirm": "Donner la propriété"
+}

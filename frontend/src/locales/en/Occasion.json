@@ -1,0 +1,27 @@
+{
+  "thisPerson": "This person",
+  "newOwner": "{{name}} is now the owner of the occasion.",
+  "deleted": "This occasion has been deleted.",
+  "confirmDelete": "Permanently delete the occasion “{{title}}”?\n\nIts days, its guests and all their ranges will be erased. This cannot be undone.",
+  "removed": "You have been removed from this occasion.",
+  "confirmRemove": "Remove {{name}} from the occasion? Their availability will be deleted.",
+  "resent": "Invitation sent again to {{email}}.",
+  "resendFailed": "The email could not be sent to {{email}}.",
+  "confirmArchive": "Archive “{{title}}”? Nobody will be able to change their availability anymore.",
+  "backToMine": "Back to my occasions",
+  "allMembers": "all members invited",
+  "editUntil": "Editing until {{date}}",
+  "shareLink": "Sharing link",
+  "archive": "Archive",
+  "settings": "Settings",
+  "unarchive": "Unarchive",
+  "deleteTitle": "Delete the occasion (administrator)",
+  "adminView": "You are viewing this occasion as the site administrator: you are not one of its guests.",
+  "archivedManually": "This occasion was archived by its creator: availability is read-only.",
+  "archivedEnded": "This occasion is over and archived: availability is read-only.",
+  "editClosed": "The editing period is over: availability can no longer be changed.",
+  "tabs": {
+    "calendar": "Calendar",
+    "report": "Report"
+  }
+}

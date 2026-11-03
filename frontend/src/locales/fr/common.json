@@ -1,0 +1,29 @@
+{
+  "appName": "Disponibilités",
+  "cancel": "Annuler",
+  "close": "Fermer",
+  "save": "Enregistrer",
+  "saving": "Enregistrement…",
+  "delete": "Supprimer",
+  "loading": "Chargement…",
+  "actions": "Actions",
+  "email": "Courriel",
+  "name": "Nom",
+  "password": "Mot de passe",
+  "optional": "(facultatif)",
+  "you": "(vous)",
+  "goHome": "Aller à l'accueil",
+  "myOccasions": "Mes occasions",
+  "organizations": "Organisations",
+  "httpError": "Erreur {{status}}",
+  "theme": {
+    "system": "Thème du système",
+    "light": "Thème clair",
+    "dark": "Thème sombre"
+  },
+  "language": {
+    "switchTo": "English",
+    "switchTitle": "Display the application in English",
+    "short": "EN"
+  }
+}

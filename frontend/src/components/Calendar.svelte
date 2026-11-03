@@ -7,6 +7,7 @@
   import Chevron from './Chevron.svelte';
   import TimeGrid from './TimeGrid.svelte';
   import DayOverlay from './DayOverlay.svelte';
+  import { t } from '../lib/i18n.svelte.js';
 
   // focus: people temporarily selected in the guest list (empty = everyone is shown).
   // highlight: person hovered in the guest list; the others are greyed out.
@@ -15,11 +16,11 @@
     focus = new Set(), highlight = null,
   } = $props();
 
-  const VIEWS = [
-    { id: 'day', label: 'Jour' },
-    { id: 'week', label: 'Semaine' },
-    { id: 'month', label: 'Mois' },
-  ];
+  const VIEWS = $derived([
+    { id: 'day', label: t('Calendar.views.day') },
+    { id: 'week', label: t('Calendar.views.week') },
+    { id: 'month', label: t('Calendar.views.month') },
+  ]);
 
   // Days open for availabilities, chosen when the occasion was created (sorted 'YYYY-MM-DD').
   const openDays = $derived(occasion.days ?? []);
@@ -27,11 +28,11 @@
 
   /** Today when it falls within the occasion, otherwise its first (or last) day. */
   function initialCursor() {
-    const t = todayStr();
-    if (!openDays.length) return parseDay(t);
-    if (t < openDays[0]) return parseDay(openDays[0]);
-    if (t > openDays.at(-1)) return parseDay(openDays.at(-1));
-    return parseDay(t);
+    const today = todayStr();
+    if (!openDays.length) return parseDay(today);
+    if (today < openDays[0]) return parseDay(openDays[0]);
+    if (today > openDays.at(-1)) return parseDay(openDays.at(-1));
+    return parseDay(today);
   }
 
   // Initial view only; the user can switch afterwards.
@@ -174,13 +175,13 @@
   <div class="space-y-2.5 border-b border-slate-200 p-3 sm:px-4">
     <!-- Line 1: date selector -->
     <div class="flex items-center gap-1">
-      <button class="btn-icon" onclick={() => move(-1)} aria-label="Précédent" title="Précédent"><Chevron dir="left" /></button>
+      <button class="btn-icon" onclick={() => move(-1)} aria-label={t('Calendar.previous')} title={t('Calendar.previous')}><Chevron dir="left" /></button>
       <h2 class="min-w-0 flex-1 truncate text-center text-base font-semibold text-slate-900 first-letter:uppercase">{title}</h2>
-      <button class="btn-icon" onclick={() => move(1)} aria-label="Suivant" title="Suivant"><Chevron dir="right" /></button>
+      <button class="btn-icon" onclick={() => move(1)} aria-label={t('Calendar.next')} title={t('Calendar.next')}><Chevron dir="right" /></button>
     </div>
     <!-- Line 2: "Today" on the left, Day / Week / Month on the right -->
     <div class="flex items-center gap-2">
-    <button class="btn-outline shrink-0 px-3 py-1.5" onclick={() => (cursor = initialCursor())}>Aujourd'hui</button>
+    <button class="btn-outline shrink-0 px-3 py-1.5" onclick={() => (cursor = initialCursor())}>{t('Calendar.today')}</button>
     <div class="flex flex-1 rounded-lg bg-slate-100 p-1 sm:ml-auto sm:flex-none">
       {#each VIEWS as v (v.id)}
         <button
@@ -211,23 +212,23 @@
     {#if participants.length}
       <TimeGrid columns={dayColumns} {colors} {nameOf} {highlight} from={occasion.dayStart} to={occasion.dayEnd} onpick={(day) => open(day)} showNames={true} overlap={byDay.get(dayStr) ?? []} total={visibleCount} />
     {:else}
-      <p class="p-10 text-center text-slate-500">Aucun invité pour l'instant.</p>
+      <p class="p-10 text-center text-slate-500">{t('Calendar.noGuests')}</p>
     {/if}
   {:else}
     <div class="flex flex-col items-center gap-3 p-10 text-center text-slate-500">
-      <p>Cette journée ne fait pas partie de l'occasion.</p>
+      <p>{t('Calendar.notInOccasion')}</p>
       <div class="flex gap-2">
-        {#if prevOpenDay(dayStr)}<button class="btn-outline" onclick={() => (cursor = parseDay(prevOpenDay(dayStr)))}>‹ Journée précédente</button>{/if}
-        {#if nextOpenDay(dayStr)}<button class="btn-outline" onclick={() => (cursor = parseDay(nextOpenDay(dayStr)))}>Journée suivante ›</button>{/if}
+        {#if prevOpenDay(dayStr)}<button class="btn-outline" onclick={() => (cursor = parseDay(prevOpenDay(dayStr)))}>‹ {t('Calendar.previousDay')}</button>{/if}
+        {#if nextOpenDay(dayStr)}<button class="btn-outline" onclick={() => (cursor = parseDay(nextOpenDay(dayStr)))}>{t('Calendar.nextDay')} ›</button>{/if}
       </div>
     </div>
   {/if}
 
   <div class="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
     {#if editable}
-      Cliquez sur une journée pour ajouter vos disponibilités.
+      {t('Calendar.clickHint')}
     {:else}
-      Lecture seule.
+      {t('Calendar.readOnly')}
     {/if}
   </div>
 </section>

@@ -1,0 +1,7 @@
+{
+  "label": "Hours of the day",
+  "start": "Start time of the day",
+  "to": "to",
+  "end": "End time of the day",
+  "help": "The calendar shows only these hours, and ranges must fit within them."
+}

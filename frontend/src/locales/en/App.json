@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "occasions": "Occasions",
+    "organizations": "Organizations",
+    "admin": "Administration"
+  },
+  "zoomLogo": "Enlarge the logo",
+  "signIn": "Sign in",
+  "themeTitle": "{{label}} — click to change",
+  "linkPhoneTitle": "Use my account on my phone (QR code)",
+  "linkPhone": "Link a phone",
+  "myProfile": "My profile",
+  "menu": "Menu",
+  "closeMenu": "Close the menu",
+  "change": "change",
+  "serverUnreachable": "Cannot reach the server: {{error}}",
+  "footer": {
+    "madeBy": "Made by <strong>Yanik Lupien</strong> and <strong>Claude</strong>",
+    "about": "About",
+    "privacy": "Privacy and cookies",
+    "terms": "Terms of use",
+    "source": "Source code (public domain)",
+    "sourceTitle": "Source code on GitHub, dedicated to the public domain"
+  },
+  "userMenu": "My account",
+  "profile": "Profile"
+}

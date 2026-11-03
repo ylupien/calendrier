@@ -1,0 +1,5 @@
+{
+  "common": "Overlap",
+  "coverage": "{{count}}/{{total}} available from {{from}} to {{to}}",
+  "editing": "{{name}} is editing"
+}

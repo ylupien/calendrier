@@ -1,0 +1,12 @@
+{
+  "title": "Nouvelle occasion",
+  "titleLabel": "Titre",
+  "titlePlaceholder": "Ex. : Souper d'équipe",
+  "description": "Description",
+  "days": "Journées",
+  "withDeadline": "Définir une date de fin de l'édition",
+  "deadlineHelp": "Après ce moment, plus personne ne pourra modifier ses disponibilités.",
+  "chooseDay": "Choisissez au moins une journée",
+  "creating": "Création…",
+  "create": "Créer l'occasion"
+}

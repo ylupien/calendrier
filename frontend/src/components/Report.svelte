@@ -1,5 +1,6 @@
 <script>
   import { parseDay, minToTime, todayStr } from '../lib/dates.js';
+  import { t, locale } from '../lib/i18n.svelte.js';
 
   let { occasion, participants, slots, onopenday } = $props();
 
@@ -72,7 +73,7 @@
   const linked = $derived(hovered && bestKeys.has(hovered) ? hovered : null);
 
   const dayLabel = (day) =>
-    parseDay(day).toLocaleDateString('fr-CA', { weekday: 'short', day: 'numeric', month: 'short' });
+    parseDay(day).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
   const names = (users) => users.map((id) => nameOf.get(id)).join(', ');
   const today = todayStr();
 </script>
@@ -80,18 +81,18 @@
 <section class="card min-w-0 overflow-hidden">
   <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-3 sm:px-4">
     <div>
-      <h2 class="font-semibold text-slate-900">Rapport des disponibilités</h2>
-      <p class="text-xs text-slate-500">Plus la couleur est foncée, plus il y a de personnes disponibles en même temps.</p>
+      <h2 class="font-semibold text-slate-900">{t('Report.title')}</h2>
+      <p class="text-xs text-slate-500">{t('Report.subtitle')}</p>
     </div>
     <label class="flex items-center gap-2 text-sm text-slate-600">
       <input type="checkbox" class="h-4 w-4 rounded accent-indigo-600" bind:checked={hideEmpty} />
-      Masquer les jours sans disponibilité
+      {t('Report.hideEmpty')}
     </label>
   </div>
 
   {#if best.length}
     <div class="border-b border-slate-200 p-4">
-      <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Meilleurs moments</h3>
+      <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{t('Report.best')}</h3>
       <ol class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {#each best as b, i (b.day + b.start)}
           {@const k = keyOf(b.day, b.start)}
@@ -111,7 +112,7 @@
               >{pctOf(b.count)}%</span>
               <span class="min-w-0">
                 <span class="block text-sm font-medium text-slate-800 first-letter:uppercase">{i + 1}. {dayLabel(b.day)}</span>
-                <span class="block text-xs text-slate-500">{minToTime(b.start)} – {minToTime(b.end)} · {b.count}/{total} personnes</span>
+                <span class="block text-xs text-slate-500">{t('Report.bestLine', { start: minToTime(b.start), end: minToTime(b.end), count: b.count, total })}</span>
                 <span class="block truncate text-xs text-slate-400">{names(b.users)}</span>
               </span>
             </button>
@@ -123,9 +124,9 @@
 
   <div class="overflow-x-auto p-4">
     {#if total === 0}
-      <p class="py-10 text-center text-slate-500">Aucun invité pour l'instant.</p>
+      <p class="py-10 text-center text-slate-500">{t('Report.noGuests')}</p>
     {:else if shownRows.length === 0}
-      <p class="py-10 text-center text-slate-500">Personne n'a encore indiqué de disponibilité.</p>
+      <p class="py-10 text-center text-slate-500">{t('Report.noSlots')}</p>
     {:else}
       <div class="min-w-[640px]">
         <!-- Hour scale -->
@@ -134,7 +135,7 @@
           <div class="relative h-5 flex-1 text-[10px] text-slate-400">
             {#each hours as h, i (h)}
               {#if i % (span > 12 * 60 ? 2 : 1) === 0}
-                <span class="absolute -translate-x-1/2" style="left:{pos(h)}">{h / 60}h</span>
+                <span class="absolute -translate-x-1/2" style="left:{pos(h)}">{t('Report.hour', { hour: h / 60 })}</span>
               {/if}
             {/each}
           </div>
@@ -147,7 +148,7 @@
               <button
                 class="w-28 shrink-0 truncate text-right text-xs first-letter:uppercase text-link {row.day === today || linked?.startsWith(row.day + '|') ? 'font-semibold' : ''}"
                 onclick={() => onopenday(row.day)}
-                title="Ouvrir cette journée"
+                title={t('Report.openDay')}
               >{dayLabel(row.day)}</button>
               <div
                 class="relative h-9 flex-1 rounded-md bg-slate-50 ring-1 ring-slate-200"
@@ -167,7 +168,7 @@
                     onmouseenter={() => (hovered = k)}
                     onmouseleave={() => (hovered = null)}
                     style="left:{pos(Math.max(seg.start, range.from))};width:{pos(range.from + Math.min(seg.end, range.to) - Math.max(seg.start, range.from))};background:{shade(seg.count)}"
-                    title="{minToTime(seg.start)} – {minToTime(seg.end)} · {seg.count}/{total} ({pctOf(seg.count)} %) : {names(seg.users)}"
+                    title={t('Report.segment', { start: minToTime(seg.start), end: minToTime(seg.end), count: seg.count, total, pct: pctOf(seg.count), names: names(seg.users) })}
                   >
                     {#if isTop || isLinked}
                       <!-- Pill may overflow narrow zones so the percentage always stays readable -->
@@ -176,7 +177,7 @@
                   </div>
                 {/each}
               </div>
-              <span class="w-14 shrink-0 text-right text-xs font-semibold {row.max ? 'text-slate-700' : 'text-slate-300'}" title="Maximum de la journée">
+              <span class="w-14 shrink-0 text-right text-xs font-semibold {row.max ? 'text-slate-700' : 'text-slate-300'}" title={t('Report.dayMax')}>
                 {row.max ? `${pctOf(row.max)}%` : '—'}
               </span>
             </div>
@@ -185,12 +186,12 @@
 
         <!-- Legend -->
         <div class="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-          <span>Disponibles :</span>
+          <span>{t('Report.legend')}</span>
           <span class="flex items-center gap-1">
             <span class="h-3 w-40 rounded" style="background:linear-gradient(to right, {shade(0)}, {shade(total)})"></span>
           </span>
-          <span>1 → {total} personne{total > 1 ? 's' : ''}</span>
-          <span class="flex items-center gap-1"><span class="h-3 w-4 rounded-sm outline-2 outline-amber-400"></span> meilleur moment</span>
+          <span>{t('Report.legendRange', { count: total })}</span>
+          <span class="flex items-center gap-1"><span class="h-3 w-4 rounded-sm outline-2 outline-amber-400"></span> {t('Report.bestMoment')}</span>
         </div>
       </div>
     {/if}

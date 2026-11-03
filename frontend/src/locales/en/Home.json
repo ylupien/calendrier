@@ -1,0 +1,46 @@
+{
+  "archiveConfirm": "Archive “{{title}}”? No one will be able to change their availability anymore.",
+  "crown": {
+    "createdTitle": "You created this occasion",
+    "adminTitle": "You administer this occasion's organization",
+    "createdLabel": "Created by you",
+    "adminLabel": "Organization administered by you"
+  },
+  "allMembers": "All members",
+  "archivedBadge": "Archived",
+  "editClosed": "Editing closed",
+  "archive": "Archive",
+  "unarchive": "Unarchive",
+  "intro": "Create an occasion, share the link and see everyone's availability in real time.",
+  "newOccasion": "New occasion",
+  "empty": {
+    "title": "No occasions yet",
+    "text": "Create your first occasion, or open a link someone shared with you: you will be added to it automatically.",
+    "create": "Create an occasion"
+  },
+  "tabs": {
+    "active": "Current and upcoming",
+    "managed": "Managed by me",
+    "archived": "Archives"
+  },
+  "filter": {
+    "label": "Organization",
+    "all": "All",
+    "none": "Personal (no organization)"
+  },
+  "sections": {
+    "current": "Current",
+    "upcoming": "Upcoming",
+    "archived": "Archived"
+  },
+  "none": {
+    "active": "No current or upcoming occasions.",
+    "activeFiltered": "No current or upcoming occasions for this filter.",
+    "managed": "You don't manage any occasions.",
+    "managedFiltered": "You don't manage any occasions for this filter.",
+    "archived": "No archived occasions.",
+    "archivedFiltered": "No archived occasions for this filter."
+  },
+  "managedIntro": "Occasions you created, and those of organizations you own or administer.",
+  "archivedIntro": "Occasions that have ended or were archived by their creator remain available in read-only mode."
+}

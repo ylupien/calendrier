@@ -1,0 +1,11 @@
+{
+  "label": "Fond",
+  "theme": "Thème",
+  "light": "Clair",
+  "dark": "Sombre",
+  "help": {
+    "theme": "Suit le mode de l'application : fond clair en mode clair, fond sombre en mode sombre.",
+    "light": "Toujours sur fond blanc, même en mode sombre.",
+    "dark": "Toujours sur fond bleu foncé, même en mode clair (pour un logo blanc)."
+  }
+}
