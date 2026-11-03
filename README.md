@@ -5,9 +5,9 @@ lien, et chaque invité indique ses **plages de disponibilité** sur un calendri
 disponibilités de tout le monde, **en temps réel**, et un **rapport** fait ressortir les moments où le plus de
 personnes sont disponibles en même temps.
 
-Aucun compte ni mot de passe : chaque visiteur est reconnu par un cookie permanent, et peut retrouver son
-identité sur un autre appareil grâce à un code QR. L'accès se fait **sur invitation** : le cookie n'est créé
-qu'en ouvrant le lien d'une occasion.
+Pas d'inscription : chaque visiteur est reconnu par un cookie permanent, et peut retrouver son identité sur un
+autre appareil grâce à un code QR, un mot de passe facultatif ou un lien de connexion reçu par courriel. L'accès
+se fait **sur invitation** : le cookie n'est créé qu'en ouvrant le lien d'une occasion.
 
 Interface en français. Stack : **Svelte 5 + Vite + Tailwind CSS 4** (frontend), **Node.js + Express 5 +
 Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**. Code versé dans le
@@ -66,12 +66,15 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 - En vues Jour et Semaine, chaque plage est une barre étroite : heure de début en haut, initiales de la personne au
   milieu, heure de fin en bas.
 - Un clic sur une journée ouvre l'éditeur de plages :
-  - **ordinateur** : timeline horizontale ; cliquer ou glisser pour créer, déplacer ou étirer une plage, la glisser hors de la ligne pour la supprimer ;
+  - **ordinateur** : timeline horizontale (ma ligne, en pointillé, est la seule où l'on dessine) ; cliquer ou glisser
+    pour créer, déplacer ou étirer une plage, la glisser hors de la ligne pour la supprimer. Les lignes des autres
+    invités sont affichées en dessous, alignées sur les mêmes heures ;
   - **cellulaire** : deux lignes, *avant-midi* et *après-midi*, pour voir toute la journée d'un coup ; toucher ou glisser
-    pour créer, poignées pour redimensionner, glisser pour déplacer (même d'une ligne à l'autre). « Nouvelle plage »
-    ouvre une petite fenêtre (heures de début et de fin, ajouts rapides).
+    pour créer, poignées pour redimensionner, glisser pour déplacer (même d'une ligne à l'autre). Les plages des autres
+    invités sont listées en dessous.
+- « Nouvelle plage » ouvre une petite fenêtre (heures de début et de fin, ajouts rapides : Matin, Après-midi, Soirée,
+  Journée). L'en-tête de l'éditeur et le bouton Fermer restent visibles pendant le défilement.
 - Plusieurs plages par jour, sans chevauchement (deux plages bout à bout sont fusionnées). Pas de 15 minutes.
-- Sur ordinateur : champs d'heure liés à la plage sélectionnée, ajouts rapides (Matin, Après-midi, Soirée, Journée).
 
 **Rapport**
 - Carte de chaleur de toutes les plages superposées : plus la couleur est foncée, plus il y a de monde disponible ;
@@ -80,26 +83,38 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 
 **Personnes**
 - Nom demandé une seule fois (courriel facultatif) ; la personne apparaît dans la liste des invités, visible de tous.
+  La fenêtre « Bienvenue ! » propose de **se connecter** à un compte existant, et avertit quand le nom tapé est déjà
+  celui d'un invité de l'occasion (pour éviter les comptes en double).
 - Liste des invités : survoler un nom grise les plages des autres dans le calendrier ; cliquer sur des noms (icône 👁)
   n'affiche temporairement que ces personnes (« Tout afficher » pour revenir).
 - Présence en direct : qui est en ligne, qui modifie quelle journée (la plage bouge chez les autres pendant qu'on la déplace).
 - Le créateur d'une occasion (ou un admin de son organisation) peut **retirer** ou **ajouter** des invités.
 
 **Organisations**
-- Nom, logo (affiché en haut des pages de ses occasions) et responsable.
+- Nom, logo (affiché en haut des pages de ses occasions, agrandissable d'un clic) et responsable.
 - Ouvrir le lien d'une occasion d'une organisation en rend membre automatiquement.
 - *Mode libre* : tous les membres créent des occasions. *Mode autorisé* : seuls les membres cochés.
 - Rôle **administrateur** : gère l'organisation (membres, droits, logo) et les invités de ses occasions.
 - À la création d'une occasion, « **Tous les membres** » l'associe à tous les membres, actuels et futurs.
 
-**Multi-appareils**
+**Comptes et appareils**
 - Bouton 📱 : un code QR à usage unique (10 min) lie le cellulaire à la même identité.
   Si le cellulaire avait déjà un compte, il propose de **fusionner** les deux comptes.
+- **Mot de passe** facultatif, choisi dans « Mon profil » : on se reconnecte à `/connexion` avec son courriel.
+- **Lien de connexion par courriel** (sans mot de passe), à usage unique, valide 30 minutes ; il ramène à la page
+  d'où l'on venait.
+
+**Administration du site**
+- Page **Administration** (onglets Comptes, Organisations, Occasions) réservée à l'administrateur du site :
+  créer un compte déjà associé à des organisations et occasions, définir courriel et mot de passe, créer un lien
+  de connexion (7 jours), fusionner des comptes en double, supprimer comptes, occasions et organisations.
+- L'administrateur gère toutes les organisations et occasions depuis leurs propres pages, sans y être ajouté.
 
 **Interface**
 - Adaptée au cellulaire (menu compact, éditeur tactile) et à l'ordinateur.
 - **Mode sombre** : suit le thème de l'appareil par défaut ; bouton ☀️ / 🌙 / 🖥️ pour forcer clair ou sombre (mémorisé).
 - Quand une fenêtre est ouverte, la page derrière ne défile plus.
+- Les onglets ont leur adresse (`#calendrier`, `#rapport`, `/admin#comptes`…) : un rechargement garde l'onglet.
 
 ---
 
@@ -156,6 +171,8 @@ Variables du fichier `.env` (modèle : `.env.example`) :
 | `TUNNEL_NAME` | `disponibilites` | Nom du tunnel Cloudflare. |
 | `WEB_PORT` | `8090` | Port local (127.0.0.1) du service de production. |
 | `COMPOSE_PROFILES` | — | `public` pour que `docker compose up -d` démarre aussi `web` et `tunnel`. |
+| `RESEND_API_KEY` | — | Clé du service [Resend](https://resend.com) : envoi des liens de connexion par courriel. Sans elle, cette option est désactivée. |
+| `MAIL_FROM` | `Disponibilités <onboarding@resend.dev>` | Expéditeur des courriels, sur un domaine vérifié dans Resend (l'adresse par défaut n'écrit qu'au titulaire du compte Resend). |
 
 ---
 
@@ -165,8 +182,8 @@ Variables du fichier `.env` (modèle : `.env.example`) :
 - **Sur invitation** : seule l'ouverture du lien d'une occasion (`GET /api/occasions/:slug`) crée un utilisateur et
   pose le cookie `rc_uid` (httpOnly, expiration en 9999). Sans cookie, l'accueil affiche une page de présentation
   du projet (avec ces captures ; accessible à tous à `/a-propos`, lien « À propos » du pied de page) et l'API
-  refuse tout le reste (401), sauf `GET /me`, la liaison d'appareil et les logos : impossible de créer une
-  occasion ou une organisation sans avoir été invité.
+  refuse tout le reste (401), sauf `GET /me`, la liaison d'appareil, la connexion et les logos : impossible de
+  créer une occasion ou une organisation sans avoir été invité.
   Les navigateurs plafonnant la durée des cookies (400 jours pour Chrome), il est réémis à chaque appel : il
   n'expire pas tant que la personne revient.
 - **Lier un appareil** : l'ordinateur génère un jeton aléatoire (stocké sous forme d'empreinte SHA-256, valable
@@ -186,19 +203,20 @@ Variables du fichier `.env` (modèle : `.env.example`) :
 
 | Action | Qui |
 |--------|-----|
-| Modifier / archiver une occasion | Son créateur |
-| Retirer / ajouter des invités | Le créateur, ou un admin de l'organisation de l'occasion |
+| Modifier / archiver une occasion | Son créateur, l'administrateur du site |
+| Retirer / ajouter des invités | Le créateur, un admin de l'organisation de l'occasion, l'administrateur du site |
 | Créer une occasion dans une organisation | Responsable, admins ; tous les membres en mode libre ; membres cochés en mode autorisé |
-| Gérer une organisation (membres, droits, logo, mode) | Responsable et admins |
-| Supprimer une organisation | Le responsable |
+| Gérer une organisation (membres, droits, logo, mode) | Responsable et admins, l'administrateur du site |
+| Supprimer une organisation | Le responsable, l'administrateur du site |
+| Supprimer une occasion ; gérer les comptes | L'administrateur du site |
 
 ---
 
 ## Temps réel
 
 Socket.IO, une salle par occasion. Les modifications passent par l'API REST, qui diffuse ensuite l'événement.
-Avec `REDIS_URL`, plusieurs serveurs (développement et production) partagent leurs événements ; la présence est
-calculée sur les connexions de tous les serveurs.
+Avec `REDIS_URL`, plusieurs serveurs de production partagent leurs événements ; la présence est calculée sur les
+connexions de tous les serveurs. Le serveur de développement, qui a sa propre base, ne s'y relie pas.
 
 | Événement | Sens | Contenu |
 |-----------|------|---------|
@@ -209,13 +227,14 @@ calculée sur les connexions de tous les serveurs.
 | `participant:upsert` | serveur → clients | `{ id, name, email }` |
 | `participant:removed` | serveur → clients | `{ userId }` |
 | `occasion:updated` | serveur → clients | occasion |
+| `occasion:deleted` | serveur → clients | `{ slug }` — supprimée par l'administrateur |
 
 ---
 
 ## API REST
 
 Préfixe `/api`. Toutes les routes identifient le visiteur par son cookie ; sans cookie, seules `GET /me`,
-`GET /occasions/:slug` (qui crée le visiteur), `GET /link/preview/:token`, `POST /link/claim`, `POST /auth/login` et
+`GET /occasions/:slug` (qui crée le visiteur), `GET /link/preview/:token`, `POST /link/claim`, `POST /auth/login`, `POST /auth/email-link` et
 `GET /organizations/:id/logo` répondent. Les routes `/admin/…` sont réservées à l'administrateur du site. Les heures sont en minutes depuis minuit.
 
 | Méthode | Route | Description |
@@ -238,6 +257,7 @@ Préfixe `/api`. Toutes les routes identifient le visiteur par son cookie ; sans
 | GET | `/link/preview/:token` | Comptes concernés (avant confirmation) |
 | POST | `/link/claim` | Lier l'appareil `{ token, merge }` |
 | POST | `/auth/login` · `/auth/logout` | Connexion `{ email, password }` / oublier le compte sur cet appareil |
+| POST | `/auth/email-link` | Recevoir un lien de connexion par courriel `{ email, retour }` |
 | PUT | `/me/password` | Choisir ou changer mon mot de passe `{ password, currentPassword }` |
 | GET / POST | `/admin/users` | Tous les comptes / créer `{ name, email, password, organizationIds, occasionIds }` |
 | GET · PATCH · DELETE | `/admin/users/:id` | Fiche / modifier `{ name, email, password, isSiteAdmin }` / supprimer |
@@ -279,6 +299,10 @@ perd (autre navigateur, données effacées), on retrouve son compte :
 
 - **par mot de passe** : chacun peut en choisir un dans « Mon profil » (le courriel sert d'identifiant), puis se
   connecter à la page `/connexion`. Un compte vide créé entre-temps sur l'appareil est supprimé à la connexion ;
+- **par lien reçu par courriel** : sur `/connexion`, « Recevoir un lien par courriel » (usage unique, 30 minutes).
+  La réponse est la même que l'adresse ait un compte ou non ; envoi par [Resend](https://resend.com) (`RESEND_API_KEY`,
+  `MAIL_FROM`). Pour écrire à n'importe quelle adresse, le domaine de `MAIL_FROM` doit être vérifié dans Resend
+  (enregistrements SPF et DKIM dans le DNS) ;
 - **par lien de connexion** : l'administrateur en crée un (usage unique, 7 jours) depuis la fiche du compte.
 
 L'**administrateur du site** voit et gère toutes les organisations et occasions (comme leur responsable, sans y
@@ -305,6 +329,11 @@ docker compose exec web node src/cli.js merge <numéro source> <numéro cible>  
 - Accès MySQL : `localhost:3307` (identifiants du `.env`).
 - Réinitialiser la base : `docker compose down -v`.
 - Journaux : `docker compose logs -f backend`.
+- `index.html` et `vite.config.js` sont montés fichier par fichier : si un outil les **remplace** (au lieu de les
+  modifier), le conteneur ne voit plus la nouvelle version. Le recréer : `docker compose up -d --force-recreate frontend`.
+- **Images de `public/`** : leur adresse reçoit à la compilation `?v=<empreinte du contenu>` (Cloudflare et les
+  navigateurs reprennent l'image dès qu'elle change). Dans le code, toujours `asset('/mon-image.png')`
+  (`src/lib/assets.js`) ; `index.html` et `site.webmanifest` sont traités automatiquement (`vite.config.js`).
 
 ---
 
@@ -317,12 +346,14 @@ docker compose exec web node src/cli.js merge <numéro source> <numéro cible>  
 ├── scripts/web.sh            publication Cloudflare Tunnel
 ├── scripts/dev-db.sh         base de développement (création, copie de la production)
 ├── LICENSE                   domaine public (Unlicense)
+├── logos/                    logo de l'application, original haute résolution
 ├── backend/
 │   └── src/
 │       ├── index.js          serveur HTTP, en-têtes de sécurité, fichiers statiques
 │       ├── db.js             connexion MySQL et migrations
 │       ├── auth.js           cookie d'identification, mots de passe
-│       ├── account.js        connexion, déconnexion, choix du mot de passe
+│       ├── account.js        connexion, lien par courriel, déconnexion, choix du mot de passe
+│       ├── mail.js           envoi des courriels (Resend)
 │       ├── admin.js          administration du site (comptes, organisations, occasions)
 │       ├── cli.js            commandes serveur (désigner un administrateur, fusionner des comptes)
 │       ├── routes.js         occasions, plages, invités, archives
@@ -337,7 +368,8 @@ docker compose exec web node src/cli.js merge <numéro source> <numéro cible>  
         ├── pages/            Landing, Home, Occasion, Organizations, LinkClaim, Login, Admin, Privacy, Terms
         ├── components/       calendrier (Calendar, MonthView, TimeGrid, DayOverlay), Report,
         │                     GuestList, éditeurs d'occasion et d'organisation, LinkDevice…
-        └── lib/              API, dates, socket, routeur, session, thème, verrouillage du défilement
+        └── lib/              API, dates, socket, routeur, session, thème, verrouillage du défilement,
+                              onglets dans l'adresse (hashTab), version des images (assets)
 ```
 
 ---
@@ -347,6 +379,8 @@ docker compose exec web node src/cli.js merge <numéro source> <numéro cible>  
 - Cookie `httpOnly`, `SameSite=Lax`, `Secure` en production.
 - Jetons de liaison stockés sous forme d'empreinte, usage unique (code QR : 10 minutes ; lien de connexion : 7 jours).
 - Mots de passe hachés avec `scrypt` (sel aléatoire) ; 10 échecs de connexion par adresse ou par IP bloquent 15 minutes.
+- Liens de connexion par courriel : même réponse que l'adresse existe ou non (on ne peut pas deviner qui est inscrit),
+  3 demandes par adresse et 10 par IP toutes les 15 minutes ; l'adresse de retour n'accepte que des pages du site.
 - Logos : type et signature vérifiés ; servis avec `nosniff` et une politique CSP `sandbox` (un SVG ne peut pas exécuter de script).
 - Conteneurs `web`, `tunnel` et `redis` verrouillés : système de fichiers en lecture seule, aucune capacité Linux,
   `no-new-privileges`, mémoire limitée. Le port de `web` n'est publié que sur `127.0.0.1`.
