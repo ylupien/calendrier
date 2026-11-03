@@ -5,7 +5,7 @@ import {
   USER_COLUMNS, toUser, hashPassword, verifyPassword, PASSWORD_MIN, setIdentityCookie, clearIdentityCookie,
 } from './auth.js';
 import { createLinkToken } from './link.js';
-import { mailEnabled, sendMail, signInMail } from './mail.js';
+import { mailEnabled, sendMail, signInMail, staticAssetUrl } from './mail.js';
 
 const EMAIL_LINK_MINUTES = 30;
 
@@ -136,7 +136,7 @@ export function createAccountRoutes() {
       const back = safeReturnPath(req.body?.retour);
       const url = `${base}/lier/${token}${back ? `?retour=${encodeURIComponent(back)}` : ''}`;
       try {
-        const mail = signInMail({ name: user.name, url, minutes: EMAIL_LINK_MINUTES, logoUrl: `${base}/logo-disponibilites.png?v=2` });
+        const mail = signInMail({ name: user.name, url, minutes: EMAIL_LINK_MINUTES, logoUrl: staticAssetUrl(base, '/logo-disponibilites.png') });
         await sendMail({ to: email, ...mail });
       } catch (err) {
         // Not shown to the visitor (same answer for every address), but logged for the administrator.

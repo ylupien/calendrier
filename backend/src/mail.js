@@ -1,3 +1,7 @@
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+
 // Outgoing email through Resend's HTTP API (https://resend.com/docs/api-reference/emails/send-email).
 // RESEND_API_KEY: API key; MAIL_FROM: sender, e.g. "Disponibilités <connexion@example.com>"
 // (the domain must be verified in Resend; onboarding@resend.dev only reaches the Resend account's own address).
@@ -25,6 +29,25 @@ export async function sendMail({ to, subject, html, text }) {
     const detail = await res.text().catch(() => '');
     throw new Error(`Resend ${res.status}: ${detail.slice(0, 300)}`);
   }
+}
+
+// Fingerprints of the compiled frontend's files (STATIC_DIR), as in frontend/vite.config.js.
+const fingerprints = new Map();
+
+/** Absolute address of a file of the site with its cache buster, e.g. …/logo-disponibilites.png?v=3f9a1c2e. */
+export function staticAssetUrl(base, file) {
+  if (!fingerprints.has(file)) {
+    let version = null;
+    try {
+      const content = fs.readFileSync(path.join(process.env.STATIC_DIR || '', file));
+      version = createHash('sha256').update(content).digest('hex').slice(0, 8);
+    } catch {
+      // No compiled frontend (development server): address without version.
+    }
+    fingerprints.set(file, version);
+  }
+  const version = fingerprints.get(file);
+  return `${base}${file}${version ? `?v=${version}` : ''}`;
 }
 
 const escapeHtml = (s) =>

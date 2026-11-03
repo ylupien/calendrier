@@ -3,6 +3,7 @@
   import { REPO_URL } from '../lib/project.js';
   import { session } from '../lib/session.svelte.js';
   import { link } from '../lib/router.svelte.js';
+  import { asset } from '../lib/assets.js';
 
   const FEATURES = [
     { icon: '🗓️', title: 'Journées au choix', text: "Choisissez précisément les journées et les heures de l'occasion, puis partagez son lien." },
@@ -15,19 +16,19 @@
 
   const SHOTS = [
     {
-      src: '/captures/calendrier-semaine.png?v=2', w: 1440, h: 900,
+      src: asset('/captures/calendrier-semaine.png'), w: 1440, h: 900,
       title: 'Le calendrier de tout le monde',
       text: "Vue Jour, Semaine ou Mois : la barre de chaque invité montre l'heure de début, ses initiales et l'heure de fin. Survolez un nom pour le repérer.",
       alt: "Vue Semaine : barres de disponibilité de chaque invité, avec heure de début, initiales et heure de fin",
     },
     {
-      src: '/captures/rapport-sombre.png?v=2', w: 1440, h: 900,
+      src: asset('/captures/rapport-sombre.png'), w: 1440, h: 900,
       title: 'Le bon moment, en un coup d’œil',
       text: 'Le rapport classe les meilleurs moments et les situe sur une carte de chaleur. Mode sombre inclus.',
       alt: 'Rapport : carte de chaleur et meilleurs moments, en mode sombre',
     },
     {
-      src: '/captures/mes-occasions.png?v=2', w: 1440, h: 760,
+      src: asset('/captures/mes-occasions.png'), w: 1440, h: 760,
       title: 'Toutes vos occasions',
       text: 'En cours, à venir, celles que vous gérez et les archives, filtrées par organisation.',
       alt: "Liste des occasions avec logos d'organisations et couronne pour celles que l'on gère",
@@ -39,7 +40,7 @@
 <div class="space-y-16 pb-6 sm:space-y-20">
   <!-- Hero -->
   <section class="mx-auto max-w-3xl pt-4 text-center sm:pt-8">
-    <img src="/logo-disponibilites.png?v=2" alt="Disponibilités" class="mx-auto h-14 w-auto sm:h-20" />
+    <img src={asset('/logo-disponibilites.png')} alt="Disponibilités" class="mx-auto h-14 w-auto sm:h-20" />
     <h1 class="mt-5 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Trouvez le moment où tout le monde est libre</h1>
     <p class="mt-4 text-lg text-slate-600">
       <em>Disponibilités</em> est un calendrier de groupe : on crée une occasion, on partage son lien, et chaque invité
@@ -119,7 +120,7 @@
       </p>
     </div>
     <img
-      src="/captures/mobile-editeur.png?v=2" width="780" height="1688" loading="lazy"
+      src={asset('/captures/mobile-editeur.png')} width="780" height="1688" loading="lazy"
       alt="Éditeur de plages sur cellulaire : deux lignes avant-midi / après-midi"
       class="mx-auto h-auto w-full max-w-[280px] rounded-3xl border border-slate-200 shadow-lg"
     />

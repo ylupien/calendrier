@@ -19,6 +19,7 @@
   import { REPO_URL } from './lib/project.js';
   import { theme, nextTheme, THEME_LABELS, THEME_ICONS } from './lib/theme.svelte.js';
   import { lockScroll } from './lib/scrollLock.js';
+  import { asset } from './lib/assets.js';
   import Modal from './components/Modal.svelte';
 
   let error = $state('');
@@ -88,7 +89,7 @@
         </span>
         <span class="h-6 w-px shrink-0 bg-slate-300 sm:h-7"></span>
         <a href="/" onclick={link} class="flex min-w-0 items-center gap-2.5 text-slate-900 sm:gap-3">
-          <img src="/logo-mark.png?v=2" alt="" class="h-8 w-auto shrink-0" />
+          <img src={asset('/logo-mark.png')} alt="" class="h-8 w-auto shrink-0" />
           <span class="truncate font-semibold">Disponibilités</span>
         </a>
       </div>
@@ -97,7 +98,7 @@
       <span class="hidden lg:block lg:w-80 lg:shrink-0"></span>
     {:else}
       <a href="/" onclick={link} class="flex min-w-0 items-center lg:w-80 lg:shrink-0">
-        <img src="/logo-disponibilites.png?v=2" alt="Disponibilités" class="h-9 w-auto max-w-full sm:h-11" />
+        <img src={asset('/logo-disponibilites.png')} alt="Disponibilités" class="h-9 w-auto max-w-full sm:h-11" />
       </a>
     {/if}
 
