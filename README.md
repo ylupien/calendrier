@@ -150,6 +150,7 @@ Variables du fichier `.env` (modèle : `.env.example`) :
 | `TUNNEL_NAME` | `disponibilites` | Nom du tunnel Cloudflare. |
 | `WEB_PORT` | `8090` | Port local (127.0.0.1) du service de production. |
 | `COMPOSE_PROFILES` | — | `public` pour que `docker compose up -d` démarre aussi `web` et `tunnel`. |
+| `HOST_UID`, `HOST_GID` | `1000` | Utilisateur du conteneur `tunnel`, propriétaire de `deploy/cloudflared/` ; remplis par `scripts/web.sh`, à indiquer si `id -u` n'est pas 1000. |
 | `LEGAL_CONTACT_NAME`, `LEGAL_CONTACT_EMAIL` | — | Responsable de la protection des renseignements personnels (pages Confidentialité et Conditions). |
 | `RESEND_API_KEY` | — | Clé du service [Resend](https://resend.com) : envoi des liens de connexion par courriel. Sans elle, cette option est désactivée. |
 | `MAIL_FROM` | `Disponibilités <onboarding@resend.dev>` | Expéditeur des courriels, sur un domaine vérifié dans Resend (l'adresse par défaut n'écrit qu'au titulaire du compte Resend). |
