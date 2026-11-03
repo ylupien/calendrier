@@ -9,7 +9,7 @@ Pas d'inscription : chaque visiteur est reconnu par un cookie permanent, et peut
 autre appareil grâce à un code QR, un mot de passe facultatif ou un lien de connexion reçu par courriel. L'accès
 se fait **sur invitation** : le cookie n'est créé qu'en ouvrant le lien d'une occasion.
 
-Interface en français. Stack : **Svelte 5 + Vite + Tailwind CSS 4** (frontend), **Node.js + Express 5 +
+Interface en **français et en anglais**. Stack : **Svelte 5 + Vite + Tailwind CSS 4** (frontend), **Node.js + Express 5 +
 Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**. Code versé dans le
 **domaine public** ([Unlicense](LICENSE)).
 
@@ -21,11 +21,15 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 
 | Calendrier d'une occasion (vue Semaine) | Rapport : meilleurs moments (mode sombre) |
 |---|---|
-| ![Vue Semaine : barres de disponibilité de chaque invité, avec heure de début, initiales et heure de fin](frontend/public/captures/calendrier-semaine.png) | ![Rapport : carte de chaleur et meilleurs moments, en mode sombre](frontend/public/captures/rapport-sombre.png) |
+| ![Vue Semaine : barres de disponibilité de chaque invité ; à droite, les membres et une personne invitée par courriel, en gris](frontend/public/captures/calendrier-semaine.png) | ![Rapport : carte de chaleur et meilleurs moments, en mode sombre](frontend/public/captures/rapport-sombre.png) |
 
 | Mes occasions | Éditeur de plages sur cellulaire |
 |---|---|
 | ![Liste des occasions avec logos d'organisations et couronne pour celles que l'on gère](frontend/public/captures/mes-occasions.png) | <img src="frontend/public/captures/mobile-editeur.png" alt="Éditeur de plages sur cellulaire : deux lignes avant-midi / après-midi" width="300"> |
+
+| Créer un logo dans la galerie |
+|---|
+| ![Création d'un logo : texte, fond, police et symbole choisis dans la galerie](frontend/public/captures/creer-logo.png) |
 
 ---
 
@@ -80,10 +84,18 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 - Liste des invités : survoler un nom grise les plages des autres dans le calendrier ; cliquer sur des noms (icône 👁)
   n'affiche temporairement que ces personnes (« Tout afficher » pour revenir).
 - Présence en direct : qui est en ligne, qui modifie quelle journée (la plage bouge chez les autres pendant qu'on la déplace).
-- Le créateur d'une occasion (ou un admin de son organisation) peut **retirer** ou **ajouter** des invités.
+- Le créateur d'une occasion (ou un admin de son organisation) peut **retirer** ou **ajouter** des invités, et en
+  **inviter par courriel** : un compte est préparé pour qui n'en a pas, et chacun reçoit un lien personnel (30 jours)
+  qui l'amène à l'occasion. La liste « Participants » sépare les **membres** des **invités** (en gris) qui n'ont pas
+  encore ouvert leur lien ; « Renvoyer l'invitation » est dans leur menu.
 
 **Organisations**
-- Nom, logo (affiché en haut des pages de ses occasions, agrandissable d'un clic) et responsable.
+- Chaque organisation a sa page (`/organisations/<numéro>`) : nom, mode, logo et membres.
+- **Logo** affiché en haut des pages de ses occasions (agrandissable d'un clic) : un fichier téléversé
+  (*Personnalisé*) ou un logo créé dans la **Galerie** — 14 symboles à chercher par mot-clé, texte modifiable,
+  5 polices, fond *Thème* (suit le mode clair / sombre), *Clair* ou *Sombre*. On peut en créer plusieurs, les
+  rééditer, les effacer et choisir celui qui est affiché.
+- Les changements (nom, logo) s'affichent **en direct** chez tous ceux qui voient l'organisation.
 - Ouvrir le lien d'une occasion d'une organisation en rend membre automatiquement.
 - *Mode libre* : tous les membres créent des occasions. *Mode autorisé* : seuls les membres cochés.
 - Rôle **administrateur** : gère l'organisation (membres, droits, logo) et les invités de ses occasions.
@@ -103,9 +115,12 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 - L'administrateur gère toutes les organisations et occasions depuis leurs propres pages, sans y être ajouté.
 
 **Interface**
+- **Français et anglais** : bouton EN / FR dans l'en-tête (sinon la langue du navigateur) ; les messages du serveur
+  et les courriels suivent la langue de chacun.
+- Menu sous son nom : *Profil* et *Lier un cellulaire*.
 - Adaptée au cellulaire (menu compact, éditeur tactile) et à l'ordinateur.
 - **Mode sombre** : suit le thème de l'appareil par défaut ; bouton ☀️ / 🌙 / 🖥️ pour forcer clair ou sombre (mémorisé).
-- Quand une fenêtre est ouverte, la page derrière ne défile plus.
+- Quand une fenêtre est ouverte, la page derrière ne défile plus. Une adresse inconnue affiche une page 404.
 - Les onglets ont leur adresse (`#calendrier`, `#rapport`, `/admin/comptes`, `/admin/organisations/<numéro>`…) : un rechargement garde l'onglet, et « ← » ou Précédent ramène à la liste.
 
 ---

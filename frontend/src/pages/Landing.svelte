@@ -6,15 +6,16 @@
   import { asset } from '../lib/assets.js';
   import { t, th } from '../lib/i18n.svelte.js';
 
-  const FEATURE_ICONS = ['🗓️', '🖱️', '⚡', '📊', '🏢', '🔒'];
+  const FEATURE_ICONS = ['🗓️', '🖱️', '⚡', '📊', '✉️', '🏢', '🎨', '🌐', '🔒'];
   const FEATURES = $derived(
     FEATURE_ICONS.map((icon, i) => ({ icon, title: t(`Landing.features.${i}.title`), text: t(`Landing.features.${i}.text`) })),
   );
 
   const SHOT_FILES = [
-    { src: asset('/captures/calendrier-semaine.png'), w: 1440, h: 900 },
+    { src: asset('/captures/calendrier-semaine.png'), w: 1440, h: 1000 },
     { src: asset('/captures/rapport-sombre.png'), w: 1440, h: 900 },
     { src: asset('/captures/mes-occasions.png'), w: 1440, h: 760 },
+    { src: asset('/captures/creer-logo.png'), w: 1440, h: 900 },
   ];
   const SHOTS = $derived(
     SHOT_FILES.map((f, i) => ({

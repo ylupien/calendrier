@@ -28,6 +28,7 @@ Tous les services ont `restart: unless-stopped` : ils repartent seuls après un 
 ├── Dockerfile                image de production (frontend compilé + backend)
 ├── scripts/web.sh            publication Cloudflare Tunnel
 ├── scripts/dev-db.sh         base de développement (création, copie de la production)
+├── scripts/check-locales.py  vérification des traductions (mêmes clés en français et en anglais)
 ├── LICENSE                   domaine public (Unlicense)
 ├── docs/                     documentation technique (ce dossier)
 ├── logos/                    logo de l'application, original haute résolution
@@ -44,14 +45,21 @@ Tous les services ont `restart: unless-stopped` : ils repartent seuls après un 
 │       ├── organizations.js  organisations, membres, rôles, logos
 │       ├── link.js           liaison d'appareils par code QR, fusion de comptes
 │       ├── socket.js         temps réel et présence (adaptateur Redis)
-│       └── clock.js          date et heure dans le fuseau de l'application
+│       ├── clock.js          date et heure dans le fuseau de l'application
+│       ├── i18n.js           langue de la requête, traduction des erreurs et des courriels
+│       └── locales/          textes du serveur (fr.json, en.json)
 └── frontend/
-    ├── public/captures/  captures d'écran (README et page de présentation)
+    ├── public/captures/          captures d'écran (README et page de présentation)
+    ├── public/logos-generiques/  symboles de la galerie de logos (SVG)
+    ├── public/fonts/             polices des logos de la galerie (licence OFL)
     └── src/
         ├── App.svelte        en-tête, menu, routage
-        ├── pages/            Landing, Home, Occasion, Organizations, LinkClaim, Login, Admin, Privacy, Terms
-        ├── components/       calendrier (Calendar, MonthView, TimeGrid, DayOverlay), Report,
-        │                     GuestList, éditeurs d'occasion et d'organisation, LinkDevice…
-        └── lib/              API, dates, socket, routeur, session, thème, verrouillage du défilement,
+        ├── pages/            Landing, Home, Occasion, Organizations, LinkClaim, Login, Admin, Privacy, Terms, NotFound
+        ├── components/       calendrier (Calendar, MonthView, TimeGrid, DayOverlay), Report, GuestList,
+        │                     InviteByEmail, éditeurs d'occasion et d'organisation (OrganizationEditor : page
+        │                     de l'organisation), logos (LogoGallery, LogoCreator, BackgroundPicker), LinkDevice…
+        ├── locales/          textes de l'interface, un fichier par composant (fr/, en/)
+        └── lib/              API, dates, socket, routeur, session, thème, traductions (i18n), galerie de logos
+                              et leur affichage, organisations en direct (orgLive), verrouillage du défilement,
                               onglets dans l'adresse (hashTab), version des images (assets)
 ```

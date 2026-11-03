@@ -17,19 +17,31 @@
       "text": "Une carte de chaleur fait ressortir les moments où le plus de personnes sont libres."
     },
     {
+      "title": "Invitations par courriel",
+      "text": "Invitez des personnes par leur courriel : chacune reçoit un lien personnel qui l'amène à l'occasion."
+    },
+    {
       "title": "Organisations",
       "text": "Regroupez vos membres sous un logo et invitez-les tous en un clic."
     },
     {
-      "title": "Sans compte",
-      "text": "Ni mot de passe ni pistage : un seul témoin essentiel, et un code QR pour passer au cellulaire."
+      "title": "Logos sur mesure",
+      "text": "Téléversez votre logo ou créez-en un dans la galerie : symbole, texte, police, fond clair ou sombre."
+    },
+    {
+      "title": "Français et anglais",
+      "text": "L'application, ses messages et ses courriels sont offerts dans les deux langues."
+    },
+    {
+      "title": "Simple et privé",
+      "text": "Pas d'inscription : on entre par un lien. Mot de passe facultatif, un seul témoin essentiel, et un code QR pour passer au cellulaire."
     }
   ],
   "shots": [
     {
       "title": "Le calendrier de tout le monde",
-      "text": "Vue Jour, Semaine ou Mois : la barre de chaque invité montre l'heure de début, ses initiales et l'heure de fin. Survolez un nom pour le repérer.",
-      "alt": "Vue Semaine : barres de disponibilité de chaque invité, avec heure de début, initiales et heure de fin"
+      "text": "Vue Jour, Semaine ou Mois : la barre de chaque invité montre l'heure de début, ses initiales et l'heure de fin. À droite, les membres et, en gris, les personnes invitées par courriel qui n'ont pas encore ouvert leur lien.",
+      "alt": "Vue Semaine : barres de disponibilité de chaque invité ; à droite, les membres et une personne invitée par courriel, en gris"
     },
     {
       "title": "Le bon moment, en un coup d’œil",
@@ -40,6 +52,11 @@
       "title": "Toutes vos occasions",
       "text": "En cours, à venir, celles que vous gérez et les archives, filtrées par organisation.",
       "alt": "Liste des occasions avec logos d'organisations et couronne pour celles que l'on gère"
+    },
+    {
+      "title": "Un logo pour votre groupe",
+      "text": "Dans la galerie, choisissez un symbole parmi plusieurs, écrivez le texte, choisissez la police et le fond : le logo est prêt. Vous pouvez en créer plusieurs et passer de l'un à l'autre.",
+      "alt": "Création d'un logo : texte « Les Sommets », police Élégante, symbole Plein air sélectionné"
     }
   ],
   "heroTitle": "Trouvez le moment où tout le monde est libre",

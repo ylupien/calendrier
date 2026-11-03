@@ -20,6 +20,8 @@
 
 ## Règles
 - **Journées** : au moins une, aucune dans le passé à l'ajout ; stockées dans la table `occasion_days`.
+- **Logos** : table `logos` (fichier personnalisé et logos de la galerie) ; l'organisation pointe vers le logo affiché
+  (`organizations.logo_id`). Voir [Développement](developpement.md#logos-de-lorganisation--personnalisé-ou-galerie).
 - **Plages** : sur une journée choisie, dans les heures de l'occasion, sans chevauchement pour une même personne.
 - **Lecture seule** : occasion archivée, ou date de fin d'édition dépassée.
 - **Retrait** : un invité ou un membre retiré n'est pas réintégré en rouvrant un lien ; seul un responsable,

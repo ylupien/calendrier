@@ -5,31 +5,43 @@
       "text": "Pick the exact days and hours of the occasion, then share its link."
     },
     {
-      "title": "Time slots with the mouse",
-      "text": "Drag to show when you're available, several time slots per day, with your finger on a phone."
+      "title": "Ranges with the mouse",
+      "text": "Drag to enter your availability, several ranges per day, with a finger on a phone."
     },
     {
       "title": "In real time",
-      "text": "Everyone sees the others' availabilities appear as they are entered."
+      "text": "Everyone sees the others' availability appear as it is entered."
     },
     {
-      "title": "Best times",
-      "text": "A heat map highlights the times when the most people are free."
+      "title": "Best moments",
+      "text": "A heat map brings out the times when the most people are free."
+    },
+    {
+      "title": "Invitations by email",
+      "text": "Invite people by their email: each one receives a personal link that takes them to the occasion."
     },
     {
       "title": "Organizations",
       "text": "Group your members under a logo and invite them all in one click."
     },
     {
-      "title": "No account",
-      "text": "No password, no tracking: a single essential cookie, and a QR code to switch to your phone."
+      "title": "Custom logos",
+      "text": "Upload your logo or create one in the gallery: symbol, text, font, light or dark background."
+    },
+    {
+      "title": "French and English",
+      "text": "The application, its messages and its emails are available in both languages."
+    },
+    {
+      "title": "Simple and private",
+      "text": "No sign-up: you come in through a link. Optional password, a single essential cookie, and a QR code to switch to your phone."
     }
   ],
   "shots": [
     {
       "title": "Everyone's calendar",
-      "text": "Day, Week or Month view: each guest's bar shows the start time, their initials and the end time. Hover over a name to spot them.",
-      "alt": "Week view: availability bars of each guest, with start time, initials and end time"
+      "text": "Day, Week or Month view: each guest's bar shows the start time, their initials and the end time. On the right, the members and, greyed out, the people invited by email who have not opened their link yet.",
+      "alt": "Week view: each guest's availability bars; on the right, the members and a person invited by email, greyed out"
     },
     {
       "title": "The right time, at a glance",
@@ -40,6 +52,11 @@
       "title": "All your occasions",
       "text": "Ongoing, upcoming, the ones you manage and the archives, filtered by organization.",
       "alt": "List of occasions with organization logos and a crown for the ones you manage"
+    },
+    {
+      "title": "A logo for your group",
+      "text": "In the gallery, pick a symbol, write the text, choose the font and the background: the logo is ready. You can create several and switch from one to another.",
+      "alt": "Creating a logo: text “Les Sommets”, Elegant font, Outdoors symbol selected"
     }
   ],
   "heroTitle": "Find the time when everyone is free",
