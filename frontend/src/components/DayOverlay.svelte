@@ -272,24 +272,7 @@
     else if (d.moved) await update(slot, d.start, d.end); // update() ignores unchanged hours
   }
 
-  // ---- Fields (edit the selected range), presets and "new range" (create one) ----
-
-  // Start: any free time of the day (the range is moved there). End: up to the next range.
-  const startOptions = $derived(selected ? OPTIONS.filter((m) => m < to && fits(m, m + STEP, selected.id)) : []);
-  const endOptions = $derived.by(() => {
-    if (!selected) return [];
-    const v = shown(selected);
-    const { hi } = bounds(v.start, selected.id);
-    return OPTIONS.filter((m) => m > v.start && m <= hi);
-  });
-
-  function changeStart(s) {
-    const v = shown(selected);
-    const { hi } = bounds(s, selected.id);
-    // Keep the end if still valid, otherwise keep the duration (shortened if the next range is closer).
-    const en = v.end > s && v.end <= hi ? v.end : Math.min(s + (v.end - v.start), hi);
-    update(selected, s, en);
-  }
+  // ---- Presets and "new range" (create one) ----
 
   /** First free spot for a new range: one hour, after my last range (or 9:00), else any free 15 min. */
   function freeSpot() {
@@ -304,15 +287,11 @@
   }
   const spot = $derived(freeSpot());
 
-  // Phone: "New range" opens a small form (start, end, quick choices) instead of creating right away.
+  // "New range" opens a small form (start, end, quick choices) instead of creating right away.
   let newRange = $state(null); // { start, end } while the form is open
   const newRangeOk = $derived(!!newRange && fits(newRange.start, newRange.end));
 
   function openNewRange() {
-    if (!mobile) {
-      if (spot) create(spot.start, spot.end);
-      return;
-    }
     newRange = spot ? { ...spot } : { start: from, end: Math.min(from + 60, to) };
   }
 
@@ -348,6 +327,7 @@
   const listRows = $derived.by(() => {
     const byUser = new Map();
     for (const s of slots) {
+      if (s.userId === me?.id && editable) continue; // already in my rows
       if (!byUser.has(s.userId)) byUser.set(s.userId, []);
       byUser.get(s.userId).push(s);
     }
@@ -362,7 +342,7 @@
 {#snippet readonlyRow(name, list, c, ghost = null)}
   <div class="flex items-center gap-3">
     <span class="w-24 shrink-0 truncate text-right text-xs text-slate-600">{name}</span>
-    <div class="hour-grid relative h-8 flex-1 rounded-md bg-slate-100">
+    <div class="hour-grid relative h-8 flex-1 rounded-md border-2 border-transparent bg-slate-100">
       {#each list.filter(inView) as s (s.id)}
         <!-- `live`: the owner is moving/resizing this range right now -->
         <div
@@ -383,17 +363,22 @@
   </div>
 {/snippet}
 
-{#snippet timeline()}
-  <div class="select-none {mobile ? 'space-y-1' : 'space-y-2'}" style="--hours:{span / 60}">
-    <!-- Scale for the whole day (on a phone with two rows, each row has its own) -->
-    <div class="flex items-end gap-3 {mobile && rows.length > 1 ? 'hidden' : ''} {mobile ? 'mx-2' : ''}">
-      {#if !mobile}<div class="w-24 shrink-0"></div>{/if}
-      <div class="relative h-4 flex-1 text-[10px] text-slate-400">
-        {#each TICKS as h (h)}
-          <span class="absolute -translate-x-1/2" style="left:{pct(h)}">{short(h)}</span>
-        {/each}
-      </div>
+{#snippet scale()}
+  <!-- Hour scale for the whole day (on a phone with two rows, each row has its own) -->
+  <div class="flex items-end gap-3 {mobile && rows.length > 1 ? 'hidden' : ''} {mobile ? 'mx-2' : ''}">
+    {#if !mobile}<div class="w-24 shrink-0"></div>{/if}
+    <div class="relative h-4 flex-1 text-[10px] text-slate-400">
+      {#each TICKS as h (h)}
+        <span class="absolute -translate-x-1/2" style="left:{pct(h)}">{short(h)}</span>
+      {/each}
     </div>
+  </div>
+{/snippet}
+
+{#snippet timeline()}
+  <!-- My row(s): the only place where ranges can be drawn -->
+  <div class="select-none {mobile ? 'space-y-1' : 'space-y-2'}" style="--hours:{span / 60}">
+    {@render scale()}
 
     {#if editable}
       {#each rows as row, ri (row.key)}
@@ -413,10 +398,15 @@
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             bind:this={tracks[ri]}
-            class="hour-grid relative flex-1 touch-none rounded-lg bg-slate-100 ring-1 ring-slate-200 {mobile ? 'mx-2 h-14' : 'h-12'} {drag ? 'cursor-grabbing' : 'cursor-crosshair'}"
+            class="hour-grid relative flex-1 touch-none rounded-lg border-2 border-dashed border-indigo-300 bg-surface transition-colors hover:border-indigo-400 hover:bg-indigo-50/60 {mobile ? 'mx-2 h-14' : 'h-12'} {drag ? 'cursor-grabbing' : 'cursor-crosshair'}"
             style="--hours:{(row.to - row.from) / 60}"
             onpointerdown={onTrackDown}
           >
+            {#if !mySlots.length && !drag && !pending}
+              <span class="pointer-events-none absolute inset-0 flex items-center justify-center px-2 text-center text-xs text-indigo-500/80">
+                {mobile ? 'Touchez ou glissez ici' : 'Cliquez ou glissez ici pour ajouter une plage'}
+              </span>
+            {/if}
             {#each mySlots.filter((x) => inRow(row, shown(x))) as s (s.id)}
               {@const v = shown(s)}
               {@const isSel = s.id === selectedId}
@@ -470,25 +460,37 @@
         </div>
       {/each}
     {/if}
+  </div>
+{/snippet}
 
-    {#each mobile ? [] : others as row (row.user.id)}
+{#snippet othersTimeline()}
+  <!-- Read-only rows (everyone else, or everyone when the occasion can no longer be edited) -->
+  <div class="select-none space-y-2" style="--hours:{span / 60}">
+    {@render scale()}
+    {#each others as row (row.user.id)}
       {@render readonlyRow(row.user.id === me?.id ? 'Vous' : row.user.name, row.slots, colors.get(row.user.id), row.ghost)}
     {/each}
   </div>
 {/snippet}
 
 
-<Modal {onclose} size="max-w-4xl">
-  <div class="flex items-center justify-between gap-2 border-b border-slate-200 px-5 py-4">
+<Modal {onclose} size="max-w-4xl" topOnPhone>
+  <!-- Stays visible at the top while the window scrolls -->
+  <div class="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-slate-200 bg-surface px-5 py-4">
     <button class="btn-icon" disabled={!prevDay} onclick={() => onchangeday(prevDay)} aria-label="Jour précédent" title="Journée précédente"><Chevron dir="left" /></button>
-    <h2 class="text-center text-base font-semibold text-slate-900 first-letter:uppercase">{fmtLong(day)}</h2>
+    <h2 class="flex min-w-0 items-center justify-center gap-2 text-base font-semibold text-slate-900">
+      <!-- Clock: this window edits the hours of the day -->
+      <svg class="h-5 w-5 shrink-0 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+      </svg>
+      <span class="text-center first-letter:uppercase">{fmtLong(day)}</span>
+    </h2>
     <div class="flex items-center gap-1">
       <button class="btn-icon" disabled={!nextDay} onclick={() => onchangeday(nextDay)} aria-label="Jour suivant" title="Journée suivante"><Chevron dir="right" /></button>
-      <button class="btn-ghost px-2 text-lg leading-none" onclick={onclose} aria-label="Fermer">×</button>
     </div>
   </div>
 
-  <div class="space-y-5 p-4 sm:space-y-6 sm:p-6">
+  <div class="flex-1 space-y-5 p-4 sm:space-y-6 sm:p-6">
     {#if editable}
       <div class="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 sm:p-5">
         {#if mobile}
@@ -507,42 +509,18 @@
           Cliquez une plage pour la modifier, étirez ses bords pour la redimensionner, glissez-la hors de la ligne pour la supprimer.
         </p>
 
-        <div class="mt-3 grid grid-cols-2 items-end gap-3 sm:mt-4 sm:flex sm:flex-wrap sm:gap-4">
-          <div>
-            <label class="label text-xs" for="ov-start">Heure de début</label>
-            <select
-              id="ov-start"
-              class="input w-full sm:w-32 disabled:bg-slate-100 disabled:text-slate-400"
-              disabled={!selected}
-              value={selected ? shown(selected).start : ''}
-              onchange={(e) => changeStart(Number(e.currentTarget.value))}
-            >
-              {#if !selected}<option value="">--:--</option>{/if}
-              {#each startOptions as m (m)}<option value={m}>{minToTime(m)}</option>{/each}
-            </select>
-          </div>
-          <div>
-            <label class="label text-xs" for="ov-end">Heure de fin</label>
-            <select
-              id="ov-end"
-              class="input w-full sm:w-32 disabled:bg-slate-100 disabled:text-slate-400"
-              disabled={!selected}
-              value={selected ? shown(selected).end : ''}
-              onchange={(e) => update(selected, shown(selected).start, Number(e.currentTarget.value))}
-            >
-              {#if !selected}<option value="">--:--</option>{/if}
-              {#each endOptions as m (m)}<option value={m}>{minToTime(m)}</option>{/each}
-            </select>
-          </div>
+        <div class="mt-3 flex flex-wrap items-center gap-3 sm:mt-4">
           {#if selected}
-            <button class="btn border border-rose-200 bg-surface text-rose-600 hover:bg-rose-50 sm:border-0 sm:bg-transparent" onclick={() => remove(selected)}>Supprimer<span class="hidden sm:inline">&nbsp;la plage</span></button>
+            {@const v = shown(selected)}
+            <span class="text-sm text-slate-700">Plage sélectionnée : <strong>{minToTime(v.start)} – {minToTime(v.end)}</strong></span>
+            <button class="btn px-2 text-rose-600 hover:bg-rose-50" onclick={() => remove(selected)}>Supprimer la plage</button>
           {:else}
-            <p class="hidden pb-2 text-xs text-slate-500 sm:block">Sélectionnez une plage pour modifier ses heures.</p>
+            <p class="text-xs text-slate-500">Sélectionnez une plage pour la supprimer.</p>
           {/if}
           <button
-            class="btn-outline {selected ? '' : 'col-span-2'} sm:ml-auto"
+            class="btn-primary ml-auto"
             disabled={!spot}
-            title={spot ? `Créer ${minToTime(spot.start)}–${minToTime(spot.end)}` : 'Plus de place libre dans cette journée'}
+            title={spot ? 'Choisir les heures d’une nouvelle plage' : 'Plus de place libre dans cette journée'}
             onclick={openNewRange}
           >＋ Nouvelle plage</button>
         </div>
@@ -564,45 +542,62 @@
 
         <div class="mt-3 sm:mt-5">{@render timeline()}</div>
       </div>
-    {:else if !mobile}
-      {@render timeline()}
     {/if}
 
-    <div>
-      <h3 class="mb-2 text-sm font-semibold text-slate-800">Disponibilités de la journée</h3>
-      {#if listRows.length === 0}
-        <p class="text-sm text-slate-500">Personne n'a encore indiqué de disponibilité pour cette journée.</p>
-      {:else}
-        <ul class="divide-y divide-slate-100 rounded-xl border border-slate-200">
-          {#each listRows as row (row.user.id)}
-            {@const mine = row.user.id === me?.id}
-            <li class="flex flex-wrap items-center gap-2 px-3 py-2">
-              <span class="h-2.5 w-2.5 rounded-full" style="background:{colors.get(row.user.id)}"></span>
-              <span class="min-w-24 text-sm font-medium text-slate-800">{row.user.name}{mine ? ' (vous)' : ''}</span>
-              <div class="flex flex-wrap gap-1.5">
-                {#each row.slots as s (s.id)}
-                  {@const v = mine ? shown(s) : s}
-                  {#if mine && editable}
-                    <button
-                      class="rounded-md px-2 py-0.5 text-xs transition {s.id === selectedId ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-indigo-100'}"
-                      onclick={() => (selectedId = s.id)}
-                    >{minToTime(v.start)} – {minToTime(v.end)}</button>
-                  {:else}
-                    <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{minToTime(v.start)} – {minToTime(v.end)}</span>
-                  {/if}
-                {/each}
-              </div>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </div>
+    {#if !mobile}
+      <!-- Computer: the others' rows, apart from mine (same inset as my box, so the hours line up) -->
+      <div class={editable ? 'px-[21px]' : ''}>
+        <h3 class="mb-2 text-sm font-semibold text-slate-800">{editable ? 'Les autres invités' : 'Disponibilités de la journée'}</h3>
+        {#if others.length}
+          {@render othersTimeline()}
+        {:else}
+          <p class="text-sm text-slate-500">
+            {editable ? "Personne d'autre n'a encore indiqué de disponibilité pour cette journée." : "Personne n'a indiqué de disponibilité pour cette journée."}
+          </p>
+        {/if}
+      </div>
+    {:else}
+      <!-- Phone: the timeline only shows my ranges; the others are listed here -->
+      <div>
+        <h3 class="mb-2 text-sm font-semibold text-slate-800">{editable ? 'Les autres invités' : 'Disponibilités de la journée'}</h3>
+        {#if listRows.length === 0}
+          <p class="text-sm text-slate-500">
+            {editable ? "Personne d'autre n'a encore indiqué de disponibilité pour cette journée." : "Personne n'a indiqué de disponibilité pour cette journée."}
+          </p>
+        {:else}
+          <ul class="divide-y divide-slate-100 rounded-xl border border-slate-200">
+            {#each listRows as row (row.user.id)}
+              <li class="flex flex-wrap items-center gap-2 px-3 py-2">
+                <span class="h-2.5 w-2.5 rounded-full" style="background:{colors.get(row.user.id)}"></span>
+                <span class="min-w-24 text-sm font-medium text-slate-800">{row.user.name}{row.user.id === me?.id ? ' (vous)' : ''}</span>
+                <div class="flex flex-wrap gap-1.5">
+                  {#each row.slots as s (s.id)}
+                    <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{minToTime(s.start)} – {minToTime(s.end)}</span>
+                  {/each}
+                </div>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  <!-- Stays visible at the bottom while the window scrolls -->
+  <div class="sticky bottom-0 z-20 flex justify-end border-t border-slate-200 bg-surface px-4 py-3 sm:px-6">
+    <button class="btn-outline w-full px-6 sm:w-auto" onclick={onclose}>
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+        <path d="M6 6l12 12M18 6L6 18" />
+      </svg>
+      Fermer
+    </button>
   </div>
 </Modal>
 
 {#if newRange}
   <Modal onclose={() => (newRange = null)} size="max-w-sm">
-    <div class="space-y-4 p-5">
+    <!-- A form: Enter adds the range -->
+    <form class="space-y-4 p-5" onsubmit={(e) => { e.preventDefault(); addNewRange(); }}>
       <h3 class="text-base font-semibold text-slate-900">Nouvelle plage</h3>
       <div class="grid grid-cols-2 gap-3">
         <div>
@@ -623,6 +618,7 @@
         <div class="flex flex-wrap gap-1.5">
           {#each presets as p (p.label)}
             <button
+              type="button"
               class="rounded-full border px-2.5 py-1 text-xs transition {newRange.start === p.start && newRange.end === p.end ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-slate-300 bg-surface text-slate-600'}"
               onclick={() => (newRange = { start: p.start, end: p.end })}
             >{p.label} <span class="opacity-70">{minToTime(p.start)}–{minToTime(p.end)}</span></button>
@@ -631,10 +627,10 @@
       {/if}
       {#if !newRangeOk}<p class="text-xs text-rose-600">Cette plage chevauche une de vos plages.</p>{/if}
       <div class="flex justify-end gap-2">
-        <button class="btn-ghost" onclick={() => (newRange = null)}>Annuler</button>
-        <button class="btn-primary px-5" disabled={!newRangeOk} onclick={addNewRange}>Ajouter</button>
+        <button type="button" class="btn-ghost" onclick={() => (newRange = null)}>Annuler</button>
+        <button class="btn-primary px-5" disabled={!newRangeOk}>Ajouter</button>
       </div>
-    </div>
+    </form>
   </Modal>
 {/if}
 

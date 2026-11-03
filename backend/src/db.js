@@ -145,6 +145,18 @@ const COLUMNS = [
     column: 'removed_at',
     sql: 'ALTER TABLE participants ADD COLUMN removed_at DATETIME NULL',
   },
+  {
+    // Optional password (scrypt), to sign back in with the email when the cookie is lost.
+    table: 'users',
+    column: 'password_hash',
+    sql: 'ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NULL AFTER email',
+  },
+  {
+    // Site administrator: manages every organization, occasion and account (see admin.js).
+    table: 'users',
+    column: 'is_site_admin',
+    sql: 'ALTER TABLE users ADD COLUMN is_site_admin TINYINT(1) NOT NULL DEFAULT 0 AFTER password_hash',
+  },
 ];
 
 async function addMissingColumns() {

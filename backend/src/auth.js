@@ -19,10 +19,50 @@ function cookieOptions() {
   };
 }
 
+/** Fields of req.user (and of the socket's user). */
+export const USER_COLUMNS = 'id, name, email, password_hash IS NOT NULL AS has_password, is_site_admin';
+
+export const toUser = (row) =>
+  row && {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    hasPassword: !!row.has_password,
+    isSiteAdmin: !!row.is_site_admin,
+  };
+
 export async function findUserByToken(token) {
   if (!token || !TOKEN_RE.test(token)) return null;
-  const [rows] = await pool.query('SELECT id, name, email FROM users WHERE token = ?', [token]);
-  return rows[0] || null;
+  const [rows] = await pool.query(`SELECT ${USER_COLUMNS} FROM users WHERE token = ?`, [token]);
+  return toUser(rows[0]) || null;
+}
+
+/** Site administrators pass every organization and occasion permission check. */
+export async function isSiteAdmin(userId) {
+  const [rows] = await pool.query('SELECT 1 FROM users WHERE id = ? AND is_site_admin = 1', [userId]);
+  return rows.length > 0;
+}
+
+// ---- Passwords (scrypt, salted; stored as "scrypt$<salt>$<hash>", hex) ----
+
+const SCRYPT_KEYLEN = 64;
+export const PASSWORD_MIN = 8;
+const scrypt = (password, salt) =>
+  new Promise((resolve, reject) =>
+    crypto.scrypt(password, salt, SCRYPT_KEYLEN, (err, key) => (err ? reject(err) : resolve(key))),
+  );
+
+export async function hashPassword(password) {
+  const salt = crypto.randomBytes(16);
+  return `scrypt$${salt.toString('hex')}$${(await scrypt(password, salt)).toString('hex')}`;
+}
+
+export async function verifyPassword(password, stored) {
+  const [kind, salt, hash] = String(stored || '').split('$');
+  if (kind !== 'scrypt' || !salt || !hash) return false;
+  const expected = Buffer.from(hash, 'hex');
+  const actual = await scrypt(password, Buffer.from(salt, 'hex'));
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
 }
 
 /**
@@ -45,7 +85,7 @@ export async function createVisitor(req, res) {
   const token = crypto.randomBytes(32).toString('hex');
   const [result] = await pool.query('INSERT INTO users (token) VALUES (?)', [token]);
   res.cookie(COOKIE_NAME, token, cookieOptions());
-  req.user = { id: result.insertId, name: null, email: null };
+  req.user = { id: result.insertId, name: null, email: null, hasPassword: false, isSiteAdmin: false };
   return req.user;
 }
 
@@ -55,6 +95,8 @@ const OPEN_ROUTES = [
   ['GET', /^\/occasions\/[\w-]+\/?$/], // invitation link: creates the visitor
   ['GET', /^\/link\/preview\/[\w-]+\/?$/], // phone linking to an existing account
   ['POST', /^\/link\/claim\/?$/],
+  ['POST', /^\/auth\/login\/?$/], // email + password: back to an existing account
+  ['POST', /^\/auth\/email-link\/?$/], // sign-in link by email
   ['GET', /^\/organizations\/\d+\/logo\/?$/],
 ];
 
@@ -62,6 +104,12 @@ const OPEN_ROUTES = [
 export function requireUser(req, res, next) {
   if (req.user || OPEN_ROUTES.some(([m, re]) => m === req.method && re.test(req.path))) return next();
   res.status(401).json({ error: "Accès sur invitation : ouvrez le lien d'une occasion qu'on vous a partagé." });
+}
+
+/** Removes the identification cookie (sign out on this device). */
+export function clearIdentityCookie(res) {
+  const { expires: _expires, ...options } = cookieOptions();
+  res.clearCookie(COOKIE_NAME, options);
 }
 
 /** Replaces the identification cookie of this response (used when linking a device to another user). */

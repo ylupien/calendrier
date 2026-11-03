@@ -1,22 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Three people's availability bars; where they meet (the shared moment) lights up in gold. -->
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4f46e5"/>
-      <stop offset="1" stop-color="#9333ea"/>
-    </linearGradient>
-    <clipPath id="shared"><rect x="0" y="28" width="64" height="11"/></clipPath>
-  </defs>
-  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
-  <rect x="7" y="28" width="50" height="11" rx="5.5" fill="#fff" fill-opacity=".16"/>
-  <g fill="#fff" fill-opacity=".7">
-    <rect x="13" y="10" width="10" height="34" rx="5"/>
-    <rect x="27" y="21" width="10" height="33" rx="5"/>
-    <rect x="41" y="14" width="10" height="28" rx="5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -2 164 164">
+  <!-- The application's logo: a "D" whose bowl is a clock face, with its gold arc and hands. -->
+  <path fill="#47807e" d="M110,9 A75,80 0 0 0 78,0 H0 L18,18 V142 L0,160 H78 A75,80 0 0 0 151.4,63.4 L134.7,66.5 A58,64 0 0 1 78,144 H42 V16 H78 A58,64 0 0 1 103.4,22.5 Z"/>
+  <g fill="#ac6d1d">
+    <path d="M117.7,12.2 A75,80 0 0 1 149.3,55.3 L133.2,60.2 A58,64 0 0 0 108.7,25.7 Z"/>
+    <rect x="70.5" y="44" width="9" height="44" rx="4.5"/>
+    <circle cx="75" cy="86" r="9.5"/>
   </g>
-  <g fill="#fbbf24" clip-path="url(#shared)">
-    <rect x="13" y="10" width="10" height="34" rx="5"/>
-    <rect x="27" y="21" width="10" height="33" rx="5"/>
-    <rect x="41" y="14" width="10" height="28" rx="5"/>
-  </g>
+  <path d="M75,86 L112,107" stroke="#ac6d1d" stroke-width="9" stroke-linecap="round"/>
 </svg>

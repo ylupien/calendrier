@@ -30,8 +30,8 @@ services:
       timeout: 5s
       retries: 30
 
-  # Relie le temps réel (Socket.IO) des serveurs de développement et de production :
-  # une modification faite sur localhost apparaît en direct sur le site public, et inversement.
+  # Temps réel (Socket.IO) partagé entre plusieurs serveurs de production (adaptateur Redis).
+  # Le serveur de développement ne s'y relie pas : il a sa propre base (calendar_dev).
   redis:
     image: redis:7.4-alpine
     restart: unless-stopped
@@ -48,7 +48,8 @@ services:
       - no-new-privileges:true
     mem_limit: 64m
 
-  # API REST + serveur Socket.IO (temps réel)
+  # API REST + serveur Socket.IO (temps réel) — développement, sur la base calendar_dev
+  # (créée et remplie par scripts/dev-db.sh), jamais sur celle de la production.
   backend:
     build: ./backend
     restart: unless-stopped
@@ -57,21 +58,20 @@ services:
       PORT: 3000
       DB_HOST: db
       DB_PORT: 3306
-      DB_NAME: ${DB_NAME:-calendar}
+      DB_NAME: ${DEV_DB_NAME:-calendar_dev}
       DB_USER: ${DB_USER:-calendar}
       DB_PASSWORD: ${DB_PASSWORD:-calendar}
       APP_TIMEZONE: ${APP_TIMEZONE:-America/Toronto}
       PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:-}   # adresse publique (codes QR)
-      REDIS_URL: redis://redis:6379           # temps réel partagé entre les serveurs
       LEGAL_CONTACT_NAME: ${LEGAL_CONTACT_NAME:-}   # responsable de la protection des renseignements personnels
       LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}     # envoi des liens de connexion par courriel (Resend)
+      MAIL_FROM: ${MAIL_FROM:-}               # expéditeur, ex. Disponibilités <connexion@example.com>
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
     volumes:
       - ./backend/src:/app/src
     depends_on:
       db:
-        condition: service_healthy
-      redis:
         condition: service_healthy
 
   # Vite + Svelte + Tailwind (proxy /api et /socket.io vers le backend)
@@ -110,6 +110,8 @@ services:
       REDIS_URL: redis://redis:6379           # temps réel partagé entre les serveurs
       LEGAL_CONTACT_NAME: ${LEGAL_CONTACT_NAME:-}   # responsable de la protection des renseignements personnels
       LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}     # envoi des liens de connexion par courriel (Resend)
+      MAIL_FROM: ${MAIL_FROM:-}               # expéditeur, ex. Disponibilités <connexion@example.com>
       COOKIE_SECURE: "true"          # servi en HTTPS par Cloudflare
     ports:
       - "127.0.0.1:${WEB_PORT:-8090}:3000"

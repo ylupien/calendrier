@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from '../lib/api.js';
+  import { session } from '../lib/session.svelte.js';
   import Modal from './Modal.svelte';
   import OrgLogo from './OrgLogo.svelte';
 
@@ -242,7 +243,7 @@
       </section>
 
       <div class="flex justify-between border-t border-slate-200 pt-5">
-        {#if org.isOwner}
+        {#if org.isOwner || session.me?.isSiteAdmin}
           <button class="btn text-rose-600 hover:bg-rose-50" onclick={remove}>Supprimer l'organisation</button>
         {:else}<span></span>{/if}
         <button class="btn-outline" onclick={onclose}>Fermer</button>

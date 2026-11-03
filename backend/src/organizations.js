@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import { pool } from './db.js';
 import { HttpError, cleanText } from './http.js';
+import { isSiteAdmin } from './auth.js';
 
 const MODES = new Set(['free', 'restricted']);
 const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml'];
@@ -27,10 +28,11 @@ export const ORG_BRANDING_COLUMNS =
  * the owner always; in "free" mode every member; in "restricted" mode only checked members.
  */
 const canCreate = (org, member, userId) =>
-  !!member && (org.owner_id === userId || !!member.is_admin || org.mode === 'free' || !!member.can_create);
+  !!org.site_admin ||
+  (!!member && (org.owner_id === userId || !!member.is_admin || org.mode === 'free' || !!member.can_create));
 
-/** Owner and administrators manage the organization (members, rights, logo, mode). */
-const isManager = (org, userId) => org.owner_id === userId || !!org.is_admin;
+/** Owner and administrators manage the organization (members, rights, logo, mode); so does a site administrator. */
+const isManager = (org, userId) => org.owner_id === userId || !!org.is_admin || !!org.site_admin;
 
 export async function canCreateIn(organizationId, userId) {
   const [rows] = await pool.query(
@@ -41,7 +43,7 @@ export async function canCreateIn(organizationId, userId) {
     [userId, organizationId],
   );
   if (!rows.length) return false;
-  return canCreate(rows[0], rows[0].member ? rows[0] : null, userId);
+  return canCreate(rows[0], rows[0].member ? rows[0] : null, userId) || (await isSiteAdmin(userId));
 }
 
 export async function isOrgAdmin(organizationId, userId) {
@@ -51,7 +53,7 @@ export async function isOrgAdmin(organizationId, userId) {
      WHERE o.id = ? AND (o.owner_id = ? OR m.is_admin = 1)`,
     [userId, organizationId, userId],
   );
-  return rows.length > 0;
+  return rows.length > 0 || (await isSiteAdmin(userId));
 }
 
 export async function isActiveMember(organizationId, userId) {
@@ -118,21 +120,22 @@ function serializeOrg(o, userId) {
 
 const ORG_COLUMNS = 'o.id, o.name, o.mode, o.logo_mime, o.logo_dark_bg, o.logo_version, o.owner_id';
 
-async function loadOrgFor(id, userId) {
+/** The organization as seen by `user`: a member, or a site administrator (who sees them all). */
+async function loadOrgFor(id, user) {
   const [rows] = await pool.query(
-    `SELECT ${ORG_COLUMNS}, m.can_create, m.is_admin
+    `SELECT ${ORG_COLUMNS}, m.can_create, m.is_admin, m.user_id AS member, ? AS site_admin
      FROM organizations o
-     JOIN organization_members m ON m.organization_id = o.id AND m.user_id = ? AND m.removed_at IS NULL
+     LEFT JOIN organization_members m ON m.organization_id = o.id AND m.user_id = ? AND m.removed_at IS NULL
      WHERE o.id = ?`,
-    [userId, Number(id)],
+    [user.isSiteAdmin ? 1 : 0, user.id, Number(id)],
   );
-  if (!rows.length) throw new HttpError(404, 'Organisation introuvable.');
+  if (!rows.length || (!rows[0].member && !user.isSiteAdmin)) throw new HttpError(404, 'Organisation introuvable.');
   return rows[0];
 }
 
-async function loadManagedOrg(id, userId) {
-  const org = await loadOrgFor(id, userId);
-  if (!isManager(org, userId)) {
+async function loadManagedOrg(id, user) {
+  const org = await loadOrgFor(id, user);
+  if (!isManager(org, user.id)) {
     throw new HttpError(403, "Seuls le responsable et les administrateurs peuvent gérer l'organisation.");
   }
   return org;
@@ -174,14 +177,16 @@ export function createOrganizationRoutes() {
 
   /** Organizations the current user belongs to. */
   r.get('/organizations', async (req, res) => {
+    // A site administrator sees every organization.
     const [rows] = await pool.query(
-      `SELECT ${ORG_COLUMNS}, m.can_create, m.is_admin,
+      `SELECT ${ORG_COLUMNS}, m.can_create, m.is_admin, ? AS site_admin,
          (SELECT COUNT(*) FROM organization_members m2 JOIN users u ON u.id = m2.user_id
            WHERE m2.organization_id = o.id AND m2.removed_at IS NULL AND u.name IS NOT NULL) AS member_count
        FROM organizations o
-       JOIN organization_members m ON m.organization_id = o.id AND m.user_id = ? AND m.removed_at IS NULL
+       ${req.user.isSiteAdmin ? 'LEFT ' : ''}JOIN organization_members m
+         ON m.organization_id = o.id AND m.user_id = ? AND m.removed_at IS NULL
        ORDER BY o.name`,
-      [req.user.id],
+      [req.user.isSiteAdmin ? 1 : 0, req.user.id],
     );
     res.json(rows.map((o) => serializeOrg(o, req.user.id)));
   });
@@ -201,12 +206,12 @@ export function createOrganizationRoutes() {
       result.insertId,
       req.user.id,
     ]);
-    res.status(201).json(serializeOrg(await loadOrgFor(result.insertId, req.user.id), req.user.id));
+    res.status(201).json(serializeOrg(await loadOrgFor(result.insertId, req.user), req.user.id));
   });
 
   /** Organization details; the member list is only visible to the owner and administrators (editor). */
   r.get('/organizations/:id', async (req, res) => {
-    const org = await loadOrgFor(req.params.id, req.user.id);
+    const org = await loadOrgFor(req.params.id, req.user);
     res.json({
       ...serializeOrg(org, req.user.id),
       members: isManager(org, req.user.id) ? await members(org.id) : undefined,
@@ -214,7 +219,7 @@ export function createOrganizationRoutes() {
   });
 
   r.patch('/organizations/:id', async (req, res) => {
-    const org = await loadManagedOrg(req.params.id, req.user.id);
+    const org = await loadManagedOrg(req.params.id, req.user);
     const name = req.body?.name !== undefined ? cleanText(req.body.name, 150) : org.name;
     const mode = req.body?.mode !== undefined ? req.body.mode : org.mode;
     const darkBg = req.body?.logoDarkBg !== undefined ? !!req.body.logoDarkBg : !!org.logo_dark_bg;
@@ -227,12 +232,14 @@ export function createOrganizationRoutes() {
       darkBg ? 1 : 0,
       org.id,
     ]);
-    res.json(serializeOrg(await loadOrgFor(org.id, req.user.id), req.user.id));
+    res.json(serializeOrg(await loadOrgFor(org.id, req.user), req.user.id));
   });
 
   r.delete('/organizations/:id', async (req, res) => {
-    const org = await loadOrgFor(req.params.id, req.user.id);
-    if (org.owner_id !== req.user.id) throw new HttpError(403, "Seul le responsable peut supprimer l'organisation.");
+    const org = await loadOrgFor(req.params.id, req.user);
+    if (org.owner_id !== req.user.id && !req.user.isSiteAdmin) {
+      throw new HttpError(403, "Seul le responsable peut supprimer l'organisation.");
+    }
     // Occasions are kept; they simply lose their organization (FK ON DELETE SET NULL).
     await pool.query('DELETE FROM organizations WHERE id = ?', [org.id]);
     res.json({ ok: true });
@@ -240,7 +247,7 @@ export function createOrganizationRoutes() {
 
   /** Manager edits a member's rights: { canCreate?, isAdmin? }. */
   r.put('/organizations/:id/members/:userId', async (req, res) => {
-    const org = await loadManagedOrg(req.params.id, req.user.id);
+    const org = await loadManagedOrg(req.params.id, req.user);
     const userId = Number(req.params.userId);
     if (userId === org.owner_id) throw new HttpError(400, 'Les droits du responsable ne peuvent pas être modifiés.');
     const sets = [];
@@ -261,7 +268,7 @@ export function createOrganizationRoutes() {
    * or the right to create. Opening a link later does not re-add them (see joinOrganization).
    */
   r.delete('/organizations/:id/members/:userId', async (req, res) => {
-    const org = await loadManagedOrg(req.params.id, req.user.id);
+    const org = await loadManagedOrg(req.params.id, req.user);
     const userId = Number(req.params.userId);
     if (userId === org.owner_id) throw new HttpError(400, 'Le responsable ne peut pas être retiré.');
     const [result] = await pool.query(
@@ -273,7 +280,7 @@ export function createOrganizationRoutes() {
   });
 
   r.post('/organizations/:id/members/:userId/restore', async (req, res) => {
-    const org = await loadManagedOrg(req.params.id, req.user.id);
+    const org = await loadManagedOrg(req.params.id, req.user);
     const [result] = await pool.query(
       'UPDATE organization_members SET removed_at = NULL WHERE organization_id = ? AND user_id = ? AND removed_at IS NOT NULL',
       [org.id, Number(req.params.userId)],
@@ -286,7 +293,7 @@ export function createOrganizationRoutes() {
     '/organizations/:id/logo',
     express.raw({ type: LOGO_TYPES, limit: '2mb' }),
     async (req, res) => {
-      const org = await loadManagedOrg(req.params.id, req.user.id);
+      const org = await loadManagedOrg(req.params.id, req.user);
       const mime = String(req.headers['content-type'] || '').split(';')[0].trim();
       if (!LOGO_TYPES.includes(mime) || !Buffer.isBuffer(req.body) || !req.body.length) {
         throw new HttpError(415, 'Format accepté : PNG, JPEG, WebP, GIF ou SVG.');
@@ -296,17 +303,17 @@ export function createOrganizationRoutes() {
         'UPDATE organizations SET logo = ?, logo_mime = ?, logo_version = logo_version + 1 WHERE id = ?',
         [req.body, mime, org.id],
       );
-      res.json(serializeOrg(await loadOrgFor(org.id, req.user.id), req.user.id));
+      res.json(serializeOrg(await loadOrgFor(org.id, req.user), req.user.id));
     },
   );
 
   r.delete('/organizations/:id/logo', async (req, res) => {
-    const org = await loadManagedOrg(req.params.id, req.user.id);
+    const org = await loadManagedOrg(req.params.id, req.user);
     await pool.query(
       'UPDATE organizations SET logo = NULL, logo_mime = NULL, logo_version = logo_version + 1 WHERE id = ?',
       [org.id],
     );
-    res.json(serializeOrg(await loadOrgFor(org.id, req.user.id), req.user.id));
+    res.json(serializeOrg(await loadOrgFor(org.id, req.user), req.user.id));
   });
 
   /** Logos are public: they appear on every occasion of the organization. URLs are versioned (?v=). */

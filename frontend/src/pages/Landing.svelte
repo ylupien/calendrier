@@ -39,7 +39,7 @@
 <div class="space-y-16 pb-6 sm:space-y-20">
   <!-- Hero -->
   <section class="mx-auto max-w-3xl pt-4 text-center sm:pt-8">
-    <img src="/favicon.svg" alt="" class="mx-auto h-16 w-16 sm:h-20 sm:w-20" />
+    <img src="/logo-disponibilites.png?v=2" alt="Disponibilités" class="mx-auto h-14 w-auto sm:h-20" />
     <h1 class="mt-5 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Trouvez le moment où tout le monde est libre</h1>
     <p class="mt-4 text-lg text-slate-600">
       <em>Disponibilités</em> est un calendrier de groupe : on crée une occasion, on partage son lien, et chaque invité
@@ -62,6 +62,10 @@
       <p class="mt-2 text-sm text-indigo-900/70">
         Vous utilisez déjà l'application sur un autre appareil ? Choisissez-y « 📱 Lier un cellulaire » et scannez
         le code QR avec celui-ci.
+      </p>
+      <p class="mt-2 text-sm text-indigo-900/70">
+        Vous avez un mot de passe ? <a href="/connexion" onclick={link} class="text-link font-medium">Connectez-vous</a>
+        pour retrouver votre compte.
       </p>
     </div>
     {/if}

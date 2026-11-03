@@ -40,6 +40,7 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 - [Temps réel](#temps-réel)
 - [API REST](#api-rest)
 - [Publication sur Internet (Cloudflare Tunnel)](#publication-sur-internet-cloudflare-tunnel)
+- [Comptes, connexion et administration](#comptes-connexion-et-administration)
 - [Développement](#développement)
 - [Structure du projet](#structure-du-projet)
 - [Sécurité](#sécurité)
@@ -120,18 +121,17 @@ Le schéma de la base est créé (et mis à jour) automatiquement au démarrage 
 ## Architecture
 
 ```
- Navigateur ──► frontend (Vite, :5173) ──proxy /api, /socket.io──► backend (Node, :3000) ──► db (MySQL)
-                                                                         │
- Internet ──► Cloudflare ──► tunnel (cloudflared) ──► web (Node, prod) ──┤
-                                                                         └──► redis (temps réel partagé)
+ Navigateur ──► frontend (Vite, :5173) ──proxy /api, /socket.io──► backend (Node, :3000) ──► db : calendar_dev
+ Internet ──► Cloudflare ──► tunnel (cloudflared) ──► web (Node, prod) ──► db : calendar
+                                                                      └──► redis (temps réel entre serveurs)
 ```
 
 | Service    | Rôle |
 |------------|------|
 | `frontend` | Serveur de développement Vite (Svelte 5 + Tailwind 4). Relaie `/api` et `/socket.io` vers le backend. |
-| `backend`  | API REST (Express 5), cookie d'identification, serveur Socket.IO. Rechargé à chaque modification. |
-| `db`       | MySQL 8.4 : utilisateurs, occasions, participants, plages, organisations. |
-| `redis`    | Relie le temps réel des serveurs de développement et de production (adaptateur Socket.IO). |
+| `backend`  | Développement : API REST (Express 5), cookie d'identification, Socket.IO, sur la base `calendar_dev`. Rechargé à chaque modification. |
+| `db`       | MySQL 8.4 : base `calendar` (production) et `calendar_dev` (développement). |
+| `redis`    | Temps réel partagé entre serveurs de production (adaptateur Socket.IO). Le développement ne s'y relie pas. |
 | `web`      | *Profil `public`* — image de production : frontend compilé servi par le backend. |
 | `tunnel`   | *Profil `public`* — `cloudflared`, publie `web` sur Internet. |
 
@@ -149,6 +149,7 @@ Variables du fichier `.env` (modèle : `.env.example`) :
 | `APP_PORT` | `5173` | Port local du serveur de développement. |
 | `APP_TIMEZONE` | `America/Toronto` | Fuseau utilisé pour « aujourd'hui » (archivage) et les dates limites d'édition. |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD` | `calendar` / `root` | Accès MySQL. **À changer** pour un usage réel. |
+| `DEV_DB_NAME` | `calendar_dev` | Base du serveur de développement (voir [Développement](#développement)). |
 | `DB_PUBLIC_PORT` | `3307` | Port MySQL exposé sur la machine (outils d'administration). |
 | `COOKIE_SECURE` | `false` | Cookie `Secure` pour le serveur de développement (le service `web` l'active toujours). |
 | `PUBLIC_HOSTNAME` | — | Adresse publique (ex. `disponibilites.example.com`) : publication et codes QR. |
@@ -214,8 +215,8 @@ calculée sur les connexions de tous les serveurs.
 ## API REST
 
 Préfixe `/api`. Toutes les routes identifient le visiteur par son cookie ; sans cookie, seules `GET /me`,
-`GET /occasions/:slug` (qui crée le visiteur), `GET /link/preview/:token`, `POST /link/claim` et
-`GET /organizations/:id/logo` répondent. Les heures sont en minutes depuis minuit.
+`GET /occasions/:slug` (qui crée le visiteur), `GET /link/preview/:token`, `POST /link/claim`, `POST /auth/login` et
+`GET /organizations/:id/logo` répondent. Les routes `/admin/…` sont réservées à l'administrateur du site. Les heures sont en minutes depuis minuit.
 
 | Méthode | Route | Description |
 |---------|-------|-------------|
@@ -236,6 +237,16 @@ Préfixe `/api`. Toutes les routes identifient le visiteur par son cookie ; sans
 | GET | `/link/:id/status` | Le code a-t-il été utilisé ? |
 | GET | `/link/preview/:token` | Comptes concernés (avant confirmation) |
 | POST | `/link/claim` | Lier l'appareil `{ token, merge }` |
+| POST | `/auth/login` · `/auth/logout` | Connexion `{ email, password }` / oublier le compte sur cet appareil |
+| PUT | `/me/password` | Choisir ou changer mon mot de passe `{ password, currentPassword }` |
+| GET / POST | `/admin/users` | Tous les comptes / créer `{ name, email, password, organizationIds, occasionIds }` |
+| GET · PATCH · DELETE | `/admin/users/:id` | Fiche / modifier `{ name, email, password, isSiteAdmin }` / supprimer |
+| POST | `/admin/users/:id/link` | Lien de connexion (usage unique, 7 jours) |
+| POST | `/admin/users/:id/merge` | Fusionner dans un autre compte `{ intoUserId }` |
+| POST · DELETE | `/admin/users/:id/organizations[/:orgId]` | Ajouter à une organisation / retirer |
+| POST · DELETE | `/admin/users/:id/occasions[/:occasionId]` | Inviter à une occasion / retirer |
+| GET | `/admin/organizations` · `/admin/occasions` | Toutes les organisations / occasions |
+| DELETE | `/admin/occasions/:id` | Supprimer une occasion (journées, invités, plages) ; une organisation se supprime par `DELETE /organizations/:id` |
 
 ---
 
@@ -261,8 +272,34 @@ Après une modification du code, reconstruire la production : `docker compose up
 
 ---
 
+## Comptes, connexion et administration
+
+Un compte naît en ouvrant le lien d'une occasion ; l'appareil le garde par un cookie permanent. Si ce cookie se
+perd (autre navigateur, données effacées), on retrouve son compte :
+
+- **par mot de passe** : chacun peut en choisir un dans « Mon profil » (le courriel sert d'identifiant), puis se
+  connecter à la page `/connexion`. Un compte vide créé entre-temps sur l'appareil est supprimé à la connexion ;
+- **par lien de connexion** : l'administrateur en crée un (usage unique, 7 jours) depuis la fiche du compte.
+
+L'**administrateur du site** voit et gère toutes les organisations et occasions (comme leur responsable, sans y
+être ajouté), et tous les comptes depuis la page **Administration** : créer un compte déjà associé à des
+organisations et occasions, définir son courriel et son mot de passe, fusionner des doublons, supprimer.
+
+Le premier administrateur est désigné sur le serveur :
+
+```bash
+docker compose exec web node src/cli.js admin <courriel ou numéro de compte>    # unadmin pour retirer
+docker compose exec web node src/cli.js merge <numéro source> <numéro cible>     # fusionner deux comptes
+```
+
+(`backend` au lieu de `web` pour la base de développement.)
+
+---
+
 ## Développement
 
+- Le serveur de développement utilise sa propre base, `calendar_dev`, jamais celle de la production :
+  `scripts/dev-db.sh create` la crée vide, `scripts/dev-db.sh copy` la remplace par une copie de la production.
 - `backend/src` et `frontend/src` sont montés dans les conteneurs : rechargement automatique (`node --watch`, HMR Vite).
 - Après l'ajout d'une dépendance npm, reconstruire le conteneur concerné : `docker compose up -d --build frontend` (ou `backend`).
 - Accès MySQL : `localhost:3307` (identifiants du `.env`).
@@ -278,12 +315,16 @@ Après une modification du code, reconstruire la production : `docker compose up
 ├── docker-compose.yml        services (développement, Redis, production, tunnel)
 ├── Dockerfile                image de production (frontend compilé + backend)
 ├── scripts/web.sh            publication Cloudflare Tunnel
+├── scripts/dev-db.sh         base de développement (création, copie de la production)
 ├── LICENSE                   domaine public (Unlicense)
 ├── backend/
 │   └── src/
 │       ├── index.js          serveur HTTP, en-têtes de sécurité, fichiers statiques
 │       ├── db.js             connexion MySQL et migrations
-│       ├── auth.js           cookie d'identification
+│       ├── auth.js           cookie d'identification, mots de passe
+│       ├── account.js        connexion, déconnexion, choix du mot de passe
+│       ├── admin.js          administration du site (comptes, organisations, occasions)
+│       ├── cli.js            commandes serveur (désigner un administrateur, fusionner des comptes)
 │       ├── routes.js         occasions, plages, invités, archives
 │       ├── organizations.js  organisations, membres, rôles, logos
 │       ├── link.js           liaison d'appareils par code QR, fusion de comptes
@@ -293,7 +334,7 @@ Après une modification du code, reconstruire la production : `docker compose up
     ├── public/captures/  captures d'écran (README et page de présentation)
     └── src/
         ├── App.svelte        en-tête, menu, routage
-        ├── pages/            Landing, Home, Occasion, Organizations, LinkClaim, Privacy, Terms
+        ├── pages/            Landing, Home, Occasion, Organizations, LinkClaim, Login, Admin, Privacy, Terms
         ├── components/       calendrier (Calendar, MonthView, TimeGrid, DayOverlay), Report,
         │                     GuestList, éditeurs d'occasion et d'organisation, LinkDevice…
         └── lib/              API, dates, socket, routeur, session, thème, verrouillage du défilement
@@ -304,7 +345,8 @@ Après une modification du code, reconstruire la production : `docker compose up
 ## Sécurité
 
 - Cookie `httpOnly`, `SameSite=Lax`, `Secure` en production.
-- Jetons de liaison stockés sous forme d'empreinte, courte durée de vie, usage unique.
+- Jetons de liaison stockés sous forme d'empreinte, usage unique (code QR : 10 minutes ; lien de connexion : 7 jours).
+- Mots de passe hachés avec `scrypt` (sel aléatoire) ; 10 échecs de connexion par adresse ou par IP bloquent 15 minutes.
 - Logos : type et signature vérifiés ; servis avec `nosniff` et une politique CSP `sandbox` (un SVG ne peut pas exécuter de script).
 - Conteneurs `web`, `tunnel` et `redis` verrouillés : système de fichiers en lecture seule, aucune capacité Linux,
   `no-new-privileges`, mémoire limitée. Le port de `web` n'est publié que sur `127.0.0.1`.

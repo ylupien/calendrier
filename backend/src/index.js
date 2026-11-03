@@ -9,6 +9,8 @@ import { createSocketServer } from './socket.js';
 import { createRoutes, errorHandler } from './routes.js';
 import { createOrganizationRoutes } from './organizations.js';
 import { createLinkRoutes } from './link.js';
+import { createAccountRoutes } from './account.js';
+import { createAdminRoutes } from './admin.js';
 
 const PORT = Number(process.env.PORT || 3000);
 
@@ -32,7 +34,16 @@ const server = http.createServer(app);
 const io = await createSocketServer(server);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
-app.use('/api', identify, requireUser, createRoutes(io), createOrganizationRoutes(), createLinkRoutes());
+app.use(
+  '/api',
+  identify,
+  requireUser,
+  createRoutes(io),
+  createOrganizationRoutes(),
+  createLinkRoutes(),
+  createAccountRoutes(),
+  createAdminRoutes(io),
+);
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Introuvable.' }));
 
 // Production: serve the compiled frontend (STATIC_DIR=/app/public, see the root Dockerfile).

@@ -2,7 +2,8 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { api } from '../lib/api.js';
   import { getSocket, ensureConnected } from '../lib/socket.js';
-  import { link } from '../lib/router.svelte.js';
+  import { link, navigate } from '../lib/router.svelte.js';
+  import { hashTab } from '../lib/hashTab.svelte.js';
   import { session, askProfile } from '../lib/session.svelte.js';
   import { fmtOccasionDays, fmtDateTime, pad } from '../lib/dates.js';
   import { colorMap } from '../lib/colors.js';
@@ -34,7 +35,8 @@
     next.has(id) ? next.delete(id) : next.add(id);
     focus = next;
   }
-  let tab = $state('calendar'); // 'calendar' | 'report'
+  // Tab in the address (#calendrier, #rapport), kept when the page is reloaded.
+  const tab = hashTab({ calendar: 'calendrier', report: 'rapport' }, 'calendar');
   let calendar = $state(null);
   let nowLocal = $state(localNow());
 
@@ -49,7 +51,9 @@
 
   // The deadline may pass while the page is open: re-evaluate every 30 s (the server enforces it anyway).
   const editClosed = $derived(!!occasion && (occasion.editClosed || (!!occasion.editDeadline && occasion.editDeadline <= nowLocal)));
-  const editable = $derived(!!occasion && !occasion.archived && !editClosed && !!me?.name);
+  // A site administrator who is not a guest only looks at the occasion.
+  const editable = $derived(!!occasion && !occasion.archived && !editClosed && !!me?.name && occasion.isGuest !== false);
+  const canSettings = $derived(!!occasion && (occasion.isCreator || !!me?.isSiteAdmin));
   const othersEditing = $derived(presence.editing.filter((e) => e.userId !== me?.id));
 
   async function load() {
@@ -90,14 +94,33 @@
     // The owner changed: reload to get my management rights again.
     if (occasion && o.creatorId !== occasion.creatorId) return load();
     // Broadcasts carry no per-user flags: keep isCreator / canManageGuests computed for me.
-    occasion = { ...o, isCreator: o.creatorId === me?.id, canManageGuests: occasion?.canManageGuests };
+    occasion = { ...o, isCreator: o.creatorId === me?.id, canManageGuests: occasion?.canManageGuests, isGuest: occasion?.isGuest };
   }
 
   function ownerTransferred(o) {
-    occasion = o;
+    occasion = { ...o, isGuest: occasion.isGuest };
     transferTo = null;
     settingsOpen = false;
     flash(`${participants.find((p) => p.id === o.creatorId)?.name ?? 'Cette personne'} est maintenant propriétaire de l'occasion.`);
+  }
+
+  function onOccasionDeleted() {
+    error = 'Cette occasion a été supprimée.';
+    socket.emit('occasion:leave');
+  }
+
+  /** Site administrator: deletes the occasion for everyone. */
+  async function deleteOccasion() {
+    const msg =
+      `Supprimer définitivement l'occasion « ${occasion.title} » ?\n\n` +
+      'Ses journées, ses invités et toutes leurs plages seront effacés. Cette action est irréversible.';
+    if (!confirm(msg)) return;
+    try {
+      await api.admin.deleteOccasion(occasion.id);
+      navigate('/admin');
+    } catch (e) {
+      flash(e.message);
+    }
   }
 
   function onParticipantRemoved({ userId }) {
@@ -135,12 +158,13 @@
       occasion = { ...occasion, isCreator: occasion.creatorId === session.me.id };
     }
     ensureConnected();
-    if (!me?.name && !occasion.archived) askProfile({ required: true, then: () => upsertParticipant(session.me) });
+    if (!me?.name && !occasion.archived && occasion.isGuest !== false) askProfile({ required: true, then: () => upsertParticipant(session.me) });
 
     socket.on('slots:day', applyDay);
     socket.on('participant:upsert', upsertParticipant);
     socket.on('occasion:updated', onOccasionUpdated);
     socket.on('participant:removed', onParticipantRemoved);
+    socket.on('occasion:deleted', onOccasionDeleted);
     socket.on('presence', (p) => (presence = p));
     socket.on('connect', onReconnect);
     if (socket.connected) join();
@@ -153,7 +177,13 @@
     session.branding = occasion?.organization ?? null;
   });
 
+  // The welcome form warns a new visitor who types the name of a guest already there.
+  $effect(() => {
+    session.occasionNames = participants.filter((p) => p.id !== me?.id).map((p) => p.name);
+  });
+
   onDestroy(() => {
+    session.occasionNames = [];
     session.branding = null;
     clearInterval(timer);
     socket.emit('occasion:leave');
@@ -161,6 +191,7 @@
     socket.off('participant:upsert', upsertParticipant);
     socket.off('occasion:updated', onOccasionUpdated);
     socket.off('participant:removed', onParticipantRemoved);
+    socket.off('occasion:deleted', onOccasionDeleted);
     socket.off('presence');
     socket.off('connect', onReconnect);
   });
@@ -199,7 +230,7 @@
   async function setArchived(archived) {
     if (archived && !confirm(`Archiver « ${occasion.title} » ? Plus personne ne pourra modifier ses disponibilités.`)) return;
     try {
-      occasion = { ...(await api.archiveOccasion(slug, archived)), canManageGuests: occasion.canManageGuests };
+      occasion = { ...(await api.archiveOccasion(slug, archived)), canManageGuests: occasion.canManageGuests, isGuest: occasion.isGuest };
     } catch (e) {
       flash(e.message);
     }
@@ -245,7 +276,7 @@
         <span class="text-xs font-medium uppercase tracking-wide text-slate-500">Lien de partage</span>
         <CopyLink {slug} />
       {/if}
-      {#if occasion.isCreator}
+      {#if canSettings}
         <div class="flex justify-end gap-2">
           {#if !occasion.archived}
             <button class="btn-outline" onclick={() => setArchived(true)}>🗄️ Archiver</button>
@@ -253,12 +284,21 @@
           {:else if occasion.archivedManually}
             <button class="btn-outline" onclick={() => setArchived(false)}>↩️ Désarchiver</button>
           {/if}
+          {#if me?.isSiteAdmin}
+            <button class="btn-outline text-rose-600" onclick={deleteOccasion} title="Supprimer l'occasion (administrateur)">🗑️ Supprimer</button>
+          {/if}
         </div>
       {/if}
     </div>
   </div>
 
   {#if occasion.description}<p class="mb-6 max-w-3xl whitespace-pre-line text-slate-600">{occasion.description}</p>{/if}
+
+  {#if occasion.isGuest === false}
+    <div class="mb-4 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+      🛡️ Vous consultez cette occasion comme administrateur du site : vous n'en êtes pas invité.
+    </div>
+  {/if}
 
   {#if occasion.archived}
     <div class="mb-4 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-600">
@@ -274,20 +314,20 @@
   <div class="mb-4 flex gap-1 border-b border-slate-200">
     {#each [{ id: 'calendar', label: '🗓️ Calendrier' }, { id: 'report', label: '📊 Rapport' }] as t (t.id)}
       <button
-        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium transition {tab === t.id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}"
-        onclick={() => (tab = t.id)}
+        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium transition {tab.value === t.id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}"
+        onclick={() => (tab.value = t.id)}
       >{t.label}</button>
     {/each}
   </div>
 
   <div class="grid gap-6 lg:grid-cols-[1fr_18rem]">
-    {#if tab === 'report'}
+    {#if tab.value === 'report'}
       <Report
         {occasion}
         {participants}
         {slots}
         onopenday={async (day) => {
-          tab = 'calendar';
+          tab.value = 'calendar';
           await tick();
           calendar?.openDay(day);
         }}
@@ -352,6 +392,6 @@
     {occasion}
     {slots}
     onclose={() => (settingsOpen = false)}
-    onsaved={(o) => { keepOpenDays(o); occasion = { ...o, canManageGuests: occasion.canManageGuests }; settingsOpen = false; }}
+    onsaved={(o) => { keepOpenDays(o); occasion = { ...o, canManageGuests: occasion.canManageGuests, isGuest: occasion.isGuest }; settingsOpen = false; }}
   />
 {/if}

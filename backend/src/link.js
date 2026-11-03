@@ -24,7 +24,7 @@ async function findValid(token) {
  * Moves everything of user `fromId` (the phone's previous identity) to user `toId`, then deletes `fromId`.
  * When both took part in the same occasion, the target's participation and availabilities win.
  */
-async function mergeUsers(conn, fromId, toId) {
+export async function mergeUsers(conn, fromId, toId) {
   await conn.query(
     `INSERT IGNORE INTO participants (occasion_id, user_id, joined_at, removed_at)
      SELECT occasion_id, ?, joined_at, removed_at FROM participants WHERE user_id = ?`,
@@ -75,19 +75,26 @@ async function accountSummary(userId) {
   return { ...summary, hasData: !!(summary.name || summary.occasions || summary.organizations) };
 }
 
+/**
+ * One-time token that signs a device in to `userId` (page /lier/<token>).
+ * Replaces the user's pending token: only the latest QR code or sign-in link works.
+ */
+export async function createLinkToken(userId, ttlMinutes = TTL_MINUTES) {
+  const token = crypto.randomBytes(32).toString('base64url');
+  await pool.query('DELETE FROM link_tokens WHERE user_id = ? AND used_at IS NULL', [userId]);
+  const [result] = await pool.query(
+    'INSERT INTO link_tokens (token_hash, user_id, expires_at) VALUES (?, ?, NOW() + INTERVAL ? MINUTE)',
+    [hash(token), userId, ttlMinutes],
+  );
+  return { id: result.insertId, token, ttlSeconds: ttlMinutes * 60 };
+}
+
 export function createLinkRoutes() {
   const r = Router();
 
   /** Creates a one-time token for the QR code (valid 10 minutes). */
   r.post('/link', async (req, res) => {
-    const token = crypto.randomBytes(32).toString('base64url');
-    // Only one pending QR code per user.
-    await pool.query('DELETE FROM link_tokens WHERE user_id = ? AND used_at IS NULL', [req.user.id]);
-    const [result] = await pool.query(
-      `INSERT INTO link_tokens (token_hash, user_id, expires_at) VALUES (?, ?, NOW() + INTERVAL ${TTL_MINUTES} MINUTE)`,
-      [hash(token), req.user.id],
-    );
-    res.status(201).json({ id: result.insertId, token, ttlSeconds: TTL_MINUTES * 60 });
+    res.status(201).json(await createLinkToken(req.user.id));
   });
 
   /** Lets the computer know when the phone has used its QR code. */

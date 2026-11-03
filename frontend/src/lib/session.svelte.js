@@ -6,6 +6,8 @@ export const session = $state({
   afterProfile: null,
   // Organization shown in the header (logo) while viewing one of its occasions.
   branding: null,
+  // Names of the other guests of the occasion being viewed (welcome form: possible duplicate account).
+  occasionNames: [],
 });
 
 export function askProfile({ required = false, then = null } = {}) {

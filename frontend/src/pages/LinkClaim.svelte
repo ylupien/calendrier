@@ -11,6 +11,11 @@
   let error = $state('');
   let busy = $state(false);
   let merge = $state(true);
+  // Sign-in link sent by email: ?retour=/o/abc brings the person back to that page.
+  const back = (() => {
+    const r = new URLSearchParams(location.search).get('retour') ?? '';
+    return /^\/(?![/\\])/.test(r) ? r : null;
+  })();
 
   onMount(async () => {
     try {
@@ -37,7 +42,9 @@
     try {
       const user = await api.claimLink(token, otherAccount ? merge : true);
       session.me = { ...session.me, ...user };
-      navigate('/');
+      // Full reload when going back to a page: its data and the live connection use the new account.
+      if (back) location.assign(back);
+      else navigate('/');
     } catch (e) {
       error = e.message;
     } finally {

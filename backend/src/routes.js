@@ -4,14 +4,14 @@ import { pool } from './db.js';
 import { clock } from './clock.js';
 import { roomOf } from './socket.js';
 import { HttpError, cleanText } from './http.js';
-import { createVisitor } from './auth.js';
+import { createVisitor, isSiteAdmin } from './auth.js';
+import { EMAIL_RE, assertLoginEmailFree } from './account.js';
 import {
   orgBranding, ORG_BRANDING_COLUMNS, canCreateIn, joinOrganization, inviteAllMembers, isOrgAdmin, isActiveMember,
 } from './organizations.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DATETIME_RE = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(:\d{2})?$/;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const isValidDate = (s) => {
   if (typeof s !== 'string' || !DATE_RE.test(s)) return false;
@@ -140,7 +140,12 @@ async function isParticipant(occasionId, userId) {
 /** The occasion's creator, or an administrator of its organization, manages its guests. */
 async function canManageGuests(o, userId) {
   if (o.creator_id === userId) return true;
-  return !!o.organization_id && (await isOrgAdmin(o.organization_id, userId));
+  return (!!o.organization_id && (await isOrgAdmin(o.organization_id, userId))) || (await isSiteAdmin(userId));
+}
+
+/** Creator-only actions (settings, archive); a site administrator may also do them. */
+async function assertCreator(o, user, message) {
+  if (o.creator_id !== user.id && !user.isSiteAdmin) throw new HttpError(403, message);
 }
 
 async function activeGuests(occasionId) {
@@ -233,7 +238,9 @@ export function createRoutes(io) {
     const host = process.env.PUBLIC_HOSTNAME;
     res.json({
       // Without a cookie: anonymous (id null) until an invitation link is opened.
-      ...(req.user ? serializeUser(req.user) : { id: null, name: null, email: null }),
+      ...(req.user
+        ? { ...serializeUser(req.user), hasPassword: req.user.hasPassword, isSiteAdmin: req.user.isSiteAdmin }
+        : { id: null, name: null, email: null }),
       timezone: clock().timezone,
       publicUrl: host ? `https://${host}` : null,
       // Person in charge of personal information (Quebec law: title and contact details must be published).
@@ -250,6 +257,11 @@ export function createRoutes(io) {
     const email = cleanText(req.body?.email, 255).toLowerCase() || null;
     if (!name) throw new HttpError(400, 'Le nom est requis.');
     if (email && !EMAIL_RE.test(email)) throw new HttpError(400, 'Courriel invalide.');
+    if (req.user.hasPassword) {
+      // The email is the login of an account with a password.
+      if (!email) throw new HttpError(400, 'Le courriel est requis : il sert à vous connecter.');
+      await assertLoginEmailFree(email, req.user.id);
+    }
 
     await pool.query('UPDATE users SET name = ?, email = ? WHERE id = ?', [name, email, req.user.id]);
     const user = { id: req.user.id, name, email };
@@ -262,7 +274,7 @@ export function createRoutes(io) {
     );
     for (const { slug } of occ) io.to(roomOf(slug)).emit('participant:upsert', user);
 
-    res.json(user);
+    res.json({ ...user, hasPassword: req.user.hasPassword, isSiteAdmin: req.user.isSiteAdmin });
   });
 
   /** Occasions the current user created or joined. */
@@ -329,21 +341,22 @@ export function createRoutes(io) {
     const o = await loadOccasion(req.params.slug);
     // The invitation link is the only way to get an account (and its cookie).
     if (!req.user) await createVisitor(req, res);
-    if (o.organization_id) {
+    // A site administrator only looks: never added as a guest (nor as a member) by opening the link.
+    const viewOnly = req.user.isSiteAdmin && !(await isParticipant(o.id, req.user.id));
+    if (o.organization_id && !viewOnly) {
       const newlyInvited = await joinOrganization(o.organization_id, req.user.id);
       if (req.user.name) {
         for (const slug of newlyInvited) io.to(roomOf(slug)).emit('participant:upsert', serializeUser(req.user));
       }
     }
 
-    const [ins] = await pool.query(
-      'INSERT IGNORE INTO participants (occasion_id, user_id) VALUES (?, ?)',
-      [o.id, req.user.id],
-    );
+    const [ins] = viewOnly
+      ? [{ affectedRows: 0 }]
+      : await pool.query('INSERT IGNORE INTO participants (occasion_id, user_id) VALUES (?, ?)', [o.id, req.user.id]);
     if (ins.affectedRows && req.user.name) {
       io.to(roomOf(o.slug)).emit('participant:upsert', serializeUser(req.user));
     }
-    if (!ins.affectedRows && !(await isParticipant(o.id, req.user.id))) {
+    if (!viewOnly && !ins.affectedRows && !(await isParticipant(o.id, req.user.id))) {
       throw new HttpError(403, 'Vous avez été retiré de cette occasion.');
     }
 
@@ -354,7 +367,11 @@ export function createRoutes(io) {
       [o.id],
     );
     res.json({
-      occasion: { ...serializeOccasion(o, req.user.id), canManageGuests: await canManageGuests(o, req.user.id) },
+      occasion: {
+        ...serializeOccasion(o, req.user.id),
+        canManageGuests: await canManageGuests(o, req.user.id),
+        isGuest: !viewOnly,
+      },
       participants,
       slots: slots.map(serializeSlot),
     });
@@ -363,7 +380,7 @@ export function createRoutes(io) {
   /** Creator-only settings: title, description, days, hours, edit deadline, organization. */
   r.patch('/occasions/:slug', async (req, res) => {
     const o = await loadOccasion(req.params.slug);
-    if (o.creator_id !== req.user.id) throw new HttpError(403, "Seul le créateur peut modifier l'occasion.");
+    await assertCreator(o, req.user, "Seul le créateur peut modifier l'occasion.");
     if (o.archived) throw new HttpError(403, 'Cette occasion est archivée et ne peut plus être modifiée.');
 
     const title = req.body?.title !== undefined ? cleanText(req.body.title, 200) : o.title;
@@ -506,7 +523,7 @@ export function createRoutes(io) {
   /** Creator archives the occasion (read-only for everyone), or undoes a manual archive. */
   r.post('/occasions/:slug/archive', async (req, res) => {
     const o = await loadOccasion(req.params.slug);
-    if (o.creator_id !== req.user.id) throw new HttpError(403, "Seul le créateur peut archiver l'occasion.");
+    await assertCreator(o, req.user, "Seul le créateur peut archiver l'occasion.");
     const archive = req.body?.archived !== false;
     if (!archive && o.ended) throw new HttpError(400, 'Cette occasion est terminée : elle reste archivée.');
 
