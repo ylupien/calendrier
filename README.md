@@ -34,16 +34,8 @@ Socket.IO** (backend), **MySQL 8.4**, **Redis**, le tout sous **Docker Compose**
 - [Aperçu](#aperçu)
 - [Fonctionnalités](#fonctionnalités)
 - [Démarrage rapide](#démarrage-rapide)
-- [Architecture](#architecture)
 - [Configuration](#configuration)
-- [Fonctionnement détaillé](#fonctionnement-détaillé)
-- [Temps réel](#temps-réel)
-- [API REST](#api-rest)
-- [Publication sur Internet (Cloudflare Tunnel)](#publication-sur-internet-cloudflare-tunnel)
-- [Comptes, connexion et administration](#comptes-connexion-et-administration)
-- [Développement](#développement)
-- [Structure du projet](#structure-du-projet)
-- [Sécurité](#sécurité)
+- [Documentation technique](#documentation-technique)
 - [Confidentialité, conditions et licence](#confidentialité-conditions-et-licence)
 
 ---
@@ -125,33 +117,20 @@ Prérequis : Docker et Docker Compose.
 ```bash
 cp .env.example .env          # facultatif : des valeurs par défaut sont prévues
 docker compose up -d --build
+scripts/dev-db.sh create      # base du serveur de développement (calendar_dev)
+docker compose restart backend
 ```
 
-Ouvrir **http://localhost:5173**.
+Ouvrir **http://localhost:5173**. Le schéma de la base est créé (et mis à jour) automatiquement au démarrage du
+backend. Pour entrer dans l'application, ouvrir le lien d'une occasion : l'accès se fait sur invitation.
 
-Le schéma de la base est créé (et mis à jour) automatiquement au démarrage du backend.
+Ensuite, selon les besoins :
 
----
-
-## Architecture
-
-```
- Navigateur ──► frontend (Vite, :5173) ──proxy /api, /socket.io──► backend (Node, :3000) ──► db : calendar_dev
- Internet ──► Cloudflare ──► tunnel (cloudflared) ──► web (Node, prod) ──► db : calendar
-                                                                      └──► redis (temps réel entre serveurs)
-```
-
-| Service    | Rôle |
-|------------|------|
-| `frontend` | Serveur de développement Vite (Svelte 5 + Tailwind 4). Relaie `/api` et `/socket.io` vers le backend. |
-| `backend`  | Développement : API REST (Express 5), cookie d'identification, Socket.IO, sur la base `calendar_dev`. Rechargé à chaque modification. |
-| `db`       | MySQL 8.4 : base `calendar` (production) et `calendar_dev` (développement). |
-| `redis`    | Temps réel partagé entre serveurs de production (adaptateur Socket.IO). Le développement ne s'y relie pas. |
-| `web`      | *Profil `public`* — image de production : frontend compilé servi par le backend. |
-| `tunnel`   | *Profil `public`* — `cloudflared`, publie `web` sur Internet. |
-
-Tous les services ont `restart: unless-stopped` : ils repartent seuls après un redémarrage de la machine
-(dès que Docker démarre), sauf s'ils ont été arrêtés volontairement.
+- **Administrateur du site** : `docker compose exec backend node src/cli.js admin <courriel ou numéro de compte>`
+  (`web` au lieu de `backend` pour la production) — voir [Comptes et administration](docs/comptes.md).
+- **Liens de connexion par courriel** : renseigner `RESEND_API_KEY` et `MAIL_FROM` (voir [Configuration](#configuration)).
+- **Publication sur Internet** (Cloudflare Tunnel) : voir [Publication](docs/deploiement.md).
+- **Copie des données de production** dans la base de développement : `scripts/dev-db.sh copy`.
 
 ---
 
@@ -164,228 +143,30 @@ Variables du fichier `.env` (modèle : `.env.example`) :
 | `APP_PORT` | `5173` | Port local du serveur de développement. |
 | `APP_TIMEZONE` | `America/Toronto` | Fuseau utilisé pour « aujourd'hui » (archivage) et les dates limites d'édition. |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_ROOT_PASSWORD` | `calendar` / `root` | Accès MySQL. **À changer** pour un usage réel. |
-| `DEV_DB_NAME` | `calendar_dev` | Base du serveur de développement (voir [Développement](#développement)). |
+| `DEV_DB_NAME` | `calendar_dev` | Base du serveur de développement (voir [Développement](docs/developpement.md)). |
 | `DB_PUBLIC_PORT` | `3307` | Port MySQL exposé sur la machine (outils d'administration). |
 | `COOKIE_SECURE` | `false` | Cookie `Secure` pour le serveur de développement (le service `web` l'active toujours). |
 | `PUBLIC_HOSTNAME` | — | Adresse publique (ex. `disponibilites.example.com`) : publication et codes QR. |
 | `TUNNEL_NAME` | `disponibilites` | Nom du tunnel Cloudflare. |
 | `WEB_PORT` | `8090` | Port local (127.0.0.1) du service de production. |
 | `COMPOSE_PROFILES` | — | `public` pour que `docker compose up -d` démarre aussi `web` et `tunnel`. |
+| `LEGAL_CONTACT_NAME`, `LEGAL_CONTACT_EMAIL` | — | Responsable de la protection des renseignements personnels (pages Confidentialité et Conditions). |
 | `RESEND_API_KEY` | — | Clé du service [Resend](https://resend.com) : envoi des liens de connexion par courriel. Sans elle, cette option est désactivée. |
 | `MAIL_FROM` | `Disponibilités <onboarding@resend.dev>` | Expéditeur des courriels, sur un domaine vérifié dans Resend (l'adresse par défaut n'écrit qu'au titulaire du compte Resend). |
 
 ---
 
-## Fonctionnement détaillé
+## Documentation technique
 
-### Identification sans compte
-- **Sur invitation** : seule l'ouverture du lien d'une occasion (`GET /api/occasions/:slug`) crée un utilisateur et
-  pose le cookie `rc_uid` (httpOnly, expiration en 9999). Sans cookie, l'accueil affiche une page de présentation
-  du projet (avec ces captures ; accessible à tous à `/a-propos`, lien « À propos » du pied de page) et l'API
-  refuse tout le reste (401), sauf `GET /me`, la liaison d'appareil, la connexion et les logos : impossible de
-  créer une occasion ou une organisation sans avoir été invité.
-  Les navigateurs plafonnant la durée des cookies (400 jours pour Chrome), il est réémis à chaque appel : il
-  n'expire pas tant que la personne revient.
-- **Lier un appareil** : l'ordinateur génère un jeton aléatoire (stocké sous forme d'empreinte SHA-256, valable
-  10 minutes, utilisable une fois) affiché en code QR. Le cellulaire qui l'ouvre reçoit le cookie de la même personne.
-  Fusion : participations, plages (celles de l'ordinateur gagnent en cas de doublon le même jour), occasions créées
-  et organisations sont rattachées au compte de l'ordinateur ; l'ancien compte est supprimé.
-
-### Règles
-- **Journées** : au moins une, aucune dans le passé à l'ajout ; stockées dans la table `occasion_days`.
-- **Plages** : sur une journée choisie, dans les heures de l'occasion, sans chevauchement pour une même personne.
-- **Lecture seule** : occasion archivée, ou date de fin d'édition dépassée.
-- **Retrait** : un invité ou un membre retiré n'est pas réintégré en rouvrant un lien ; seul un responsable,
-  un admin ou le créateur peut le réintégrer.
-- Toutes les règles sont vérifiées par le serveur, pas seulement par l'interface.
-
-### Droits
-
-| Action | Qui |
-|--------|-----|
-| Modifier / archiver une occasion | Son créateur, l'administrateur du site |
-| Retirer / ajouter des invités | Le créateur, un admin de l'organisation de l'occasion, l'administrateur du site |
-| Créer une occasion dans une organisation | Responsable, admins ; tous les membres en mode libre ; membres cochés en mode autorisé |
-| Gérer une organisation (membres, droits, logo, mode) | Responsable et admins, l'administrateur du site |
-| Supprimer une organisation | Le responsable, l'administrateur du site |
-| Supprimer une occasion ; gérer les comptes | L'administrateur du site |
-
----
-
-## Temps réel
-
-Socket.IO, une salle par occasion. Les modifications passent par l'API REST, qui diffuse ensuite l'événement.
-Avec `REDIS_URL`, plusieurs serveurs de production partagent leurs événements ; la présence est calculée sur les
-connexions de tous les serveurs. Le serveur de développement, qui a sa propre base, ne s'y relie pas.
-
-| Événement | Sens | Contenu |
-|-----------|------|---------|
-| `occasion:join` / `occasion:leave` | client → serveur | `slug` (accusé : `{ ok, presence }`) |
-| `editing` | client → serveur | `{ day, start, end, slotId?, deleting? }` ou `null` |
-| `presence` | serveur → clients | `{ online: [userId], editing: [{ userId, day, start, end, slotId, deleting }] }` |
-| `slots:day` | serveur → clients | `{ userId, day, slots }` — remplace les plages de ce jour pour cette personne |
-| `participant:upsert` | serveur → clients | `{ id, name, email }` |
-| `participant:removed` | serveur → clients | `{ userId }` |
-| `occasion:updated` | serveur → clients | occasion |
-| `occasion:deleted` | serveur → clients | `{ slug }` — supprimée par l'administrateur |
-
----
-
-## API REST
-
-Préfixe `/api`. Toutes les routes identifient le visiteur par son cookie ; sans cookie, seules `GET /me`,
-`GET /occasions/:slug` (qui crée le visiteur), `GET /link/preview/:token`, `POST /link/claim`, `POST /auth/login`, `POST /auth/email-link` et
-`GET /organizations/:id/logo` répondent. Les routes `/admin/…` sont réservées à l'administrateur du site. Les heures sont en minutes depuis minuit.
-
-| Méthode | Route | Description |
-|---------|-------|-------------|
-| GET / PUT | `/me` | Profil (nom, courriel) |
-| GET / POST | `/occasions` | Mes occasions / créer `{ title, days: ['YYYY-MM-DD', …], dayStart, dayEnd, … }` |
-| GET / PATCH | `/occasions/:slug` | Détail avec `days` (rejoint l'occasion) / paramètres (dont `days`) |
-| POST | `/occasions/:slug/archive` | Archiver `{ archived }` |
-| POST · PATCH · DELETE | `/occasions/:slug/slots[/:id]` | Plages : ajouter `{ day, start, end }`, modifier, supprimer |
-| GET | `/occasions/:slug/candidates` | Personnes ajoutables comme invités |
-| POST · DELETE | `/occasions/:slug/participants[/:userId]` | Ajouter `{ userIds }` / retirer un invité |
-| POST | `/occasions/:slug/owner` | Donner la propriété à un invité `{ userId }` |
-| GET / POST | `/organizations` | Mes organisations / créer |
-| GET · PATCH · DELETE | `/organizations/:id` | Détail (membres pour les gestionnaires) / modifier / supprimer |
-| PUT · DELETE | `/organizations/:id/members/:userId` | Droits `{ canCreate, isAdmin }` / retirer |
-| POST | `/organizations/:id/members/:userId/restore` | Réintégrer un membre |
-| GET · PUT · DELETE | `/organizations/:id/logo` | Logo (PNG, JPEG, WebP, GIF, SVG ; 2 Mo) |
-| POST | `/link` | Créer un code QR de liaison |
-| GET | `/link/:id/status` | Le code a-t-il été utilisé ? |
-| GET | `/link/preview/:token` | Comptes concernés (avant confirmation) |
-| POST | `/link/claim` | Lier l'appareil `{ token, merge }` |
-| POST | `/auth/login` · `/auth/logout` | Connexion `{ email, password }` / oublier le compte sur cet appareil |
-| POST | `/auth/email-link` | Recevoir un lien de connexion par courriel `{ email, retour }` |
-| PUT | `/me/password` | Choisir ou changer mon mot de passe `{ password, currentPassword }` |
-| GET / POST | `/admin/users` | Tous les comptes / créer `{ name, email, password, organizationIds, occasionIds }` |
-| GET · PATCH · DELETE | `/admin/users/:id` | Fiche / modifier `{ name, email, password, isSiteAdmin }` / supprimer |
-| POST | `/admin/users/:id/link` | Lien de connexion (usage unique, 7 jours) |
-| POST | `/admin/users/:id/merge` | Fusionner dans un autre compte `{ intoUserId }` |
-| POST · DELETE | `/admin/users/:id/organizations[/:orgId]` | Ajouter à une organisation / retirer |
-| POST · DELETE | `/admin/users/:id/occasions[/:occasionId]` | Inviter à une occasion / retirer |
-| GET | `/admin/organizations` · `/admin/occasions` | Toutes les organisations / occasions |
-| DELETE | `/admin/occasions/:id` | Supprimer une occasion (journées, invités, plages) ; une organisation se supprime par `DELETE /organizations/:id` |
-
----
-
-## Publication sur Internet (Cloudflare Tunnel)
-
-Le service `tunnel` (image officielle `cloudflare/cloudflared`) ouvre une connexion **sortante** vers Cloudflare :
-aucun port n'est ouvert sur la machine ni sur le routeur, HTTPS et WebSocket sont gérés par Cloudflare. Il publie le
-service `web` (production) ; le serveur de développement Vite n'est jamais exposé.
-
-Prérequis : `cloudflared` installé et connecté au compte (`cloudflared tunnel login`), `jq`, et un domaine géré par Cloudflare.
-
-```bash
-# .env : PUBLIC_HOSTNAME=disponibilites.example.com
-scripts/web.sh publish   # une seule fois : tunnel + DNS, active le profil « public », démarre
-docker compose up -d     # ensuite : démarre aussi web + tunnel
-scripts/web.sh status    # état des conteneurs, du tunnel et du site
-scripts/web.sh stop      # retire le site public (le développement continue)
-scripts/web.sh logs      # journaux du tunnel
-```
-
-Les identifiants du tunnel sont écrits dans `deploy/cloudflared/` (mode 600, hors Git).
-Après une modification du code, reconstruire la production : `docker compose up -d --build web`.
-
----
-
-## Comptes, connexion et administration
-
-Un compte naît en ouvrant le lien d'une occasion ; l'appareil le garde par un cookie permanent. Si ce cookie se
-perd (autre navigateur, données effacées), on retrouve son compte :
-
-- **par mot de passe** : chacun peut en choisir un dans « Mon profil » (le courriel sert d'identifiant), puis se
-  connecter à la page `/connexion`. Un compte vide créé entre-temps sur l'appareil est supprimé à la connexion ;
-- **par lien reçu par courriel** : sur `/connexion`, « Recevoir un lien par courriel » (usage unique, 30 minutes).
-  La réponse est la même que l'adresse ait un compte ou non ; envoi par [Resend](https://resend.com) (`RESEND_API_KEY`,
-  `MAIL_FROM`). Pour écrire à n'importe quelle adresse, le domaine de `MAIL_FROM` doit être vérifié dans Resend
-  (enregistrements SPF et DKIM dans le DNS) ;
-- **par lien de connexion** : l'administrateur en crée un (usage unique, 7 jours) depuis la fiche du compte.
-
-L'**administrateur du site** voit et gère toutes les organisations et occasions (comme leur responsable, sans y
-être ajouté), et tous les comptes depuis la page **Administration** : créer un compte déjà associé à des
-organisations et occasions, définir son courriel et son mot de passe, fusionner des doublons, supprimer.
-
-Le premier administrateur est désigné sur le serveur :
-
-```bash
-docker compose exec web node src/cli.js admin <courriel ou numéro de compte>    # unadmin pour retirer
-docker compose exec web node src/cli.js merge <numéro source> <numéro cible>     # fusionner deux comptes
-```
-
-(`backend` au lieu de `web` pour la base de développement.)
-
----
-
-## Développement
-
-- Le serveur de développement utilise sa propre base, `calendar_dev`, jamais celle de la production :
-  `scripts/dev-db.sh create` la crée vide, `scripts/dev-db.sh copy` la remplace par une copie de la production.
-- `backend/src` et `frontend/src` sont montés dans les conteneurs : rechargement automatique (`node --watch`, HMR Vite).
-- Après l'ajout d'une dépendance npm, reconstruire le conteneur concerné : `docker compose up -d --build frontend` (ou `backend`).
-- Accès MySQL : `localhost:3307` (identifiants du `.env`).
-- Réinitialiser la base : `docker compose down -v`.
-- Journaux : `docker compose logs -f backend`.
-- `index.html` et `vite.config.js` sont montés fichier par fichier : si un outil les **remplace** (au lieu de les
-  modifier), le conteneur ne voit plus la nouvelle version. Le recréer : `docker compose up -d --force-recreate frontend`.
-- **Images de `public/`** : leur adresse reçoit à la compilation `?v=<empreinte du contenu>` (Cloudflare et les
-  navigateurs reprennent l'image dès qu'elle change). Dans le code, toujours `asset('/mon-image.png')`
-  (`src/lib/assets.js`) ; `index.html` et `site.webmanifest` sont traités automatiquement (`vite.config.js`).
-
----
-
-## Structure du projet
-
-```
-.
-├── docker-compose.yml        services (développement, Redis, production, tunnel)
-├── Dockerfile                image de production (frontend compilé + backend)
-├── scripts/web.sh            publication Cloudflare Tunnel
-├── scripts/dev-db.sh         base de développement (création, copie de la production)
-├── LICENSE                   domaine public (Unlicense)
-├── logos/                    logo de l'application, original haute résolution
-├── backend/
-│   └── src/
-│       ├── index.js          serveur HTTP, en-têtes de sécurité, fichiers statiques
-│       ├── db.js             connexion MySQL et migrations
-│       ├── auth.js           cookie d'identification, mots de passe
-│       ├── account.js        connexion, lien par courriel, déconnexion, choix du mot de passe
-│       ├── mail.js           envoi des courriels (Resend)
-│       ├── admin.js          administration du site (comptes, organisations, occasions)
-│       ├── cli.js            commandes serveur (désigner un administrateur, fusionner des comptes)
-│       ├── routes.js         occasions, plages, invités, archives
-│       ├── organizations.js  organisations, membres, rôles, logos
-│       ├── link.js           liaison d'appareils par code QR, fusion de comptes
-│       ├── socket.js         temps réel et présence (adaptateur Redis)
-│       └── clock.js          date et heure dans le fuseau de l'application
-└── frontend/
-    ├── public/captures/  captures d'écran (README et page de présentation)
-    └── src/
-        ├── App.svelte        en-tête, menu, routage
-        ├── pages/            Landing, Home, Occasion, Organizations, LinkClaim, Login, Admin, Privacy, Terms
-        ├── components/       calendrier (Calendar, MonthView, TimeGrid, DayOverlay), Report,
-        │                     GuestList, éditeurs d'occasion et d'organisation, LinkDevice…
-        └── lib/              API, dates, socket, routeur, session, thème, verrouillage du défilement,
-                              onglets dans l'adresse (hashTab), version des images (assets)
-```
-
----
-
-## Sécurité
-
-- Cookie `httpOnly`, `SameSite=Lax`, `Secure` en production.
-- Jetons de liaison stockés sous forme d'empreinte, usage unique (code QR : 10 minutes ; lien de connexion : 7 jours).
-- Mots de passe hachés avec `scrypt` (sel aléatoire) ; 10 échecs de connexion par adresse ou par IP bloquent 15 minutes.
-- Liens de connexion par courriel : même réponse que l'adresse existe ou non (on ne peut pas deviner qui est inscrit),
-  3 demandes par adresse et 10 par IP toutes les 15 minutes ; l'adresse de retour n'accepte que des pages du site.
-- Logos : type et signature vérifiés ; servis avec `nosniff` et une politique CSP `sandbox` (un SVG ne peut pas exécuter de script).
-- Conteneurs `web`, `tunnel` et `redis` verrouillés : système de fichiers en lecture seule, aucune capacité Linux,
-  `no-new-privileges`, mémoire limitée. Le port de `web` n'est publié que sur `127.0.0.1`.
-- Les fichiers sensibles (`.env`, `deploy/`) sont exclus de Git.
-- Les mots de passe MySQL par défaut sont destinés au développement : changez-les dans `.env`.
+Le fonctionnement interne est documenté dans [`docs/`](docs/README.md) :
+[architecture](docs/architecture.md) ·
+[fonctionnement détaillé](docs/fonctionnement.md) ·
+[comptes et administration](docs/comptes.md) ·
+[temps réel](docs/temps-reel.md) ·
+[API REST](docs/api.md) ·
+[publication](docs/deploiement.md) ·
+[développement](docs/developpement.md) ·
+[sécurité](docs/securite.md).
 
 ---
 
@@ -398,4 +179,3 @@ docker compose exec web node src/cli.js merge <numéro source> <numéro cible>  
 - Le responsable de la protection des renseignements personnels se configure dans `.env` :
   `LEGAL_CONTACT_NAME`, `LEGAL_CONTACT_EMAIL` (affichés sur ces pages).
 - **Licence** : domaine public ([Unlicense](LICENSE)).
-
