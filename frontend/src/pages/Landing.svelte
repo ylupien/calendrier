@@ -15,19 +15,19 @@
 
   const SHOTS = [
     {
-      src: '/captures/calendrier-semaine.png', w: 1440, h: 900,
+      src: '/captures/calendrier-semaine.png?v=2', w: 1440, h: 900,
       title: 'Le calendrier de tout le monde',
       text: "Vue Jour, Semaine ou Mois : la barre de chaque invité montre l'heure de début, ses initiales et l'heure de fin. Survolez un nom pour le repérer.",
       alt: "Vue Semaine : barres de disponibilité de chaque invité, avec heure de début, initiales et heure de fin",
     },
     {
-      src: '/captures/rapport-sombre.png', w: 1440, h: 900,
+      src: '/captures/rapport-sombre.png?v=2', w: 1440, h: 900,
       title: 'Le bon moment, en un coup d’œil',
       text: 'Le rapport classe les meilleurs moments et les situe sur une carte de chaleur. Mode sombre inclus.',
       alt: 'Rapport : carte de chaleur et meilleurs moments, en mode sombre',
     },
     {
-      src: '/captures/mes-occasions.png', w: 1440, h: 760,
+      src: '/captures/mes-occasions.png?v=2', w: 1440, h: 760,
       title: 'Toutes vos occasions',
       text: 'En cours, à venir, celles que vous gérez et les archives, filtrées par organisation.',
       alt: "Liste des occasions avec logos d'organisations et couronne pour celles que l'on gère",
@@ -119,7 +119,7 @@
       </p>
     </div>
     <img
-      src="/captures/mobile-editeur.png" width="780" height="1688" loading="lazy"
+      src="/captures/mobile-editeur.png?v=2" width="780" height="1688" loading="lazy"
       alt="Éditeur de plages sur cellulaire : deux lignes avant-midi / après-midi"
       class="mx-auto h-auto w-full max-w-[280px] rounded-3xl border border-slate-200 shadow-lg"
     />
